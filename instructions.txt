@@ -1,0 +1,111 @@
+**Projektbeschreibung: Fuhrpark-Webapp**
+
+### **1. Ziel der Webapp**
+
+Die Webapplikation dient zur Verwaltung des Fuhrparks eines Unternehmens. Mitarbeiter können Fahrzeuge für bestimmte Zeiträume anfragen, während Fuhrparkmitarbeiter Anfragen annehmen, ablehnen oder umplanen können. Zudem bietet die Webapp eine visuelle Übersicht über die Belegung der Fahrzeuge mit Kalenderansichten.
+
+---
+
+### **2. Technologie-Stack**
+
+- **Frontend**: React (TailwindCSS für Styling)
+- **Backend**: Flask (Python)
+- **Datenbank**: PostgreSQL oder MySQL
+- **Auth**: Autologin vom Desktop user, in der datenbank stehen die user die wo sind, außerdem gibt es noch eine datenbank in dem steht wo ein mitarbeiter arbeitet, somit wird auch die abteilung mtigegeben
+- **Deployment**: Docker 
+
+---
+
+### **3. Funktionen**
+
+#### **3.1 Fahrzeugverwaltung**
+
+- Jedes Fahrzeug hat folgende Attribute:
+  - Fahrzeugbild (Das automatisch aus dem internet genommen wird und zum auto modell passt)
+  - Kennzeichen
+  - Modell
+  - Fahrzeugstatus (verfügbar, reserviert für, in Wartung, etc.)
+- Fahrzeuge können hinzugefügt, bearbeitet und gelöscht werden
+
+#### **3.2 Kalender für jedes Fahrzeug**
+
+- Jedes Fahrzeug hat eine Kalenderansicht, in der belegte Tage farblich markiert sind
+- Die Kalender sind in einer Galerie angeordnet
+- Bei Hover über einen belegten Tag wird angezeigt, welcher Mitarbeiter das Fahrzeug gebucht hat
+- Die Nummernschilder, Bilder und das Nummernschild sind als überschrifft und beschreibung für die Kalender
+
+#### **3.3 Globaler Kalender (Dashboard)**
+
+- Zeigt alle gebuchten Fahrzeuge auf einmal an
+- Jedes Fahrzeug wird in einer eigenen Farbe dargestellt
+- Ermöglicht eine schnelle Übersicht über die Verfügbarkeit
+
+#### **3.4 Nutzerverwaltung**
+
+- Zwei Benutzerrollen:
+  - **Mitarbeiter**: Kann Fahrzeuge anfragen
+  - **Fuhrparkmitarbeiter**: Kann Anfragen verwalten
+- Authentifizierung über Autologin und Rolle wird über datenbank dargestellt, genau wie abteilung und Gebäude
+
+#### **3.5 Fahrzeugbuchung durch Mitarbeiter**
+
+- Mitarbeiter können ein Fahrzeug für einen bestimmten Zeitraum anfragen
+- Anfrage geht an Fuhrparkmitarbeiter zur Prüfung
+- Wenn kein speziefisches angefragt wird, wird gefragt nach wofür es genutzt werden soll und welche größe das auto haben soll
+
+#### **3.6 Anfrageverwaltung für Fuhrparkmitarbeiter**
+
+- Kann Anfragen **annehmen**, **ablehnen** oder **umplanen**
+- Bei Umplanung kann ein anderes Fahrzeug vorgeschlagen oder eine andere Zeit zugewiesen werden
+- Mitarbeiter erhalten eine Benachrichtigung über den Status ihrer Anfrage
+
+#### **3.7 Dashboard mit Zusatzfunktionen**
+
+- **Statistiken**:
+  - Fahrzeugnutzungshäufigkeit (in einem Graph)
+  - Durchschnittliche Buchungsdauer pro Fahrzeug (möglichkeit in einem graph anzeigen zu lassen)
+  - Fahrzeuge mit den meisten Buchungen
+- **Benachrichtigungen**:
+  - Erinnerungen für Rückgaben
+  - Fahrzeuge, die zur Wartung müssen
+- **Such- und Filterfunktion**:
+  - Fahrzeuge nach Verfügbarkeit, Modell oder Status filtern
+
+#### **3.8 Auch Features**
+
+- Automatische Erinnerungen per E-Mail für gebuchte Fahrzeuge
+- **Wartungsmodus für Fahrzeuge**, sodass diese nicht gebucht werden können
+- **Import- und Exportfunktion für Fahrzeuglisten und Buchungen**
+
+---
+
+### **4. Architektur**
+
+- **Frontend**
+
+  - React (mit Zustandverwaltung via Redux oder Context API)
+  - Fetch-API oder Axios für Backend-Kommunikation
+
+- **Backend**
+
+  - REST API mit Flask
+  - Auto Login verifiezierung durch Datenbank
+  - Routen:
+    - `/api/vehicles` (GET, POST, PUT, DELETE)
+    - `/api/bookings` (GET, POST, PUT, DELETE)
+    - `/api/users` (GET, POST, PUT, DELETE)
+
+- **Datenbank (SQL)**
+
+  - Tabellen:
+    - `vehicles`: ID, Modell, Kennzeichen, Bild, Status
+    - `users`: ID, Name, Rolle, E-Mail, Passwort (verschlüsselt)
+    - `bookings`: ID, Fahrzeug-ID, Nutzer-ID, Startzeit, Endzeit, Status
+
+---
+
+### **5. Wichtig zu Beachten**
+
+Diese Webapp bietet eine vollständige Lösung für das Fuhrparkmanagement. Die intuitive UI und das Dashboard mit Kalender- und Statistikfunktionen ermöglichen eine effiziente Verwaltung der Fahrzeuge. Die Webseite soll ein modernes und ästhetisches Design haben, das durch abgerundete Elemente und eine benutzerfreundliche Oberfläche überzeugt. Inspiriert von Plattformen wie Apple, Tesla und Notion soll die Webapp eine klare und angenehme Nutzererfahrung bieten. Zusätzliche Features wie Wartungsmodi und Erinnerungen optimieren den Workflow. Durch die modulare Architektur kann die Webapp problemlos erweitert werden.
+
+ 
