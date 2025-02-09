@@ -3,6 +3,14 @@ import os
 class Config:
     DEBUG = True
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your_secret_key')
-    # Nutze DATABASE_URL aus der Umgebung (z. B. von Docker Compose) oder fallback auf SQLite
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///fuhrpark.db')
+    # SQL Server Verbindung für lokale Entwicklung
+    SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc:///?odbc_connect=' + ';'.join([
+        'DRIVER={ODBC Driver 18 for SQL Server}',  # Wichtig: Exakter Treibername
+        'SERVER=DESKTOP-QD39JFR',  # Dein lokaler Server
+        'DATABASE=Fuhrpark',
+        'Trusted_Connection=yes',  # Windows-Authentifizierung
+        'TrustServerCertificate=yes',
+        'Encrypt=no',  # Deaktiviere Verschlüsselung für lokale Entwicklung
+        'timeout=60'  # Erhöhter Timeout für Entwicklung
+    ])
     SQLALCHEMY_TRACK_MODIFICATIONS = False 

@@ -3,6 +3,7 @@ from flask_cors import CORS
 from config import Config
 from models import db, Vehicle, User, Booking
 import os
+import requests
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -10,6 +11,23 @@ app.config.from_object(Config)
 CORS(app)
 
 db.init_app(app)
+
+# Test-Route für Datenbankverbindung
+@app.route('/api/test-db')
+def test_db():
+    try:
+        # Versuche eine einfache Datenbankabfrage
+        vehicles = Vehicle.query.all()
+        return jsonify({
+            "status": "success",
+            "message": "Datenbankverbindung erfolgreich",
+            "vehicle_count": len(vehicles)
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 # -- Autologin Simulation --
 @app.before_request
@@ -24,23 +42,48 @@ def auto_login():
     }
 
 def get_vehicle_image(modell):
-    # Platzhalter-Funktion: Hier sollte eine Integration erfolgen, um zugehörige Fahrzeugbilder zu holen.
-    return f"https://dummyimage.com/600x400/000/fff&text={modell}"
+    # Unsplash API Konfiguration
+    UNSPLASH_ACCESS_KEY = "YOUR_UNSPLASH_ACCESS_KEY"  # Sie müssen sich bei Unsplash registrieren
+    
+    try:
+        # Suche nach Bildern des Automodells
+        search_url = f"https://api.unsplash.com/search/photos"
+        params = {
+            "query": f"car {modell}",
+            "per_page": 1,
+            "orientation": "landscape",
+            "client_id": UNSPLASH_ACCESS_KEY
+        }
+        
+        response = requests.get(search_url, params=params)
+        data = response.json()
+        
+        # Wenn Bilder gefunden wurden, verwende das erste
+        if data["results"] and len(data["results"]) > 0:
+            return data["results"][0]["urls"]["regular"]
+            
+        # Fallback, falls kein Bild gefunden wurde
+        return f"https://dummyimage.com/600x400/000/fff&text={modell}"
+        
+    except Exception as e:
+        print(f"Fehler beim Abrufen des Fahrzeugbildes: {e}")
+        return f"https://dummyimage.com/600x400/000/fff&text={modell}"
 
 # -------- Vehicles Endpoints --------
 @app.route('/api/vehicles', methods=['GET'])
 def get_vehicles():
-    vehicles = Vehicle.query.all()
-    result = []
-    for v in vehicles:
-        result.append({
-            "id": v.id,
-            "modell": v.modell,
-            "kennzeichen": v.kennzeichen,
-            "bild": v.bild,
-            "status": v.status
-        })
-    return jsonify(result)
+    try:
+        vehicles = Vehicle.query.all()
+        return jsonify([{
+            'id': v.id,
+            'modell': v.modell,
+            'kennzeichen': v.kennzeichen,
+            'bild': v.bild,
+            'status': v.status
+        } for v in vehicles])
+    except Exception as e:
+        print(f"Fehler beim Abrufen der Fahrzeuge: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/vehicles', methods=['POST'])
 def add_vehicle():
@@ -251,5 +294,44 @@ def get_statistics():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # Bei Bedarf später auf eine Migrationslösung umstellen
+        try:
+            # Erstelle Beispieldaten, falls die Tabellen leer sind
+            db.create_all()
+            
+            if not Vehicle.query.first():  # Wenn keine Fahrzeuge existieren
+                test_vehicles = [
+                    Vehicle(
+                        modell='VW Golf',
+                        kennzeichen='B-AA 1234',
+                        bild='https://example.com/golf.jpg',
+                        status='verfügbar'
+                    ),
+                    Vehicle(
+                        modell='BMW 3er',
+                        kennzeichen='B-BB 5678',
+                        bild='https://example.com/bmw.jpg',
+                        status='verfügbar'
+                    )
+                ]
+                for vehicle in test_vehicles:
+                    db.session.add(vehicle)
+                
+                # Erstelle einen Test-User
+                if not User.query.first():
+                    test_user = User(
+                        name="Test User",
+                        rolle="Mitarbeiter",
+                        email="test@example.com",
+                        department="IT",
+                        building="Hauptgebäude"
+                    )
+                    test_user.set_password("test123")
+                    db.session.add(test_user)
+                
+                db.session.commit()
+                print("Beispieldaten wurden erstellt!")
+            
+        except Exception as e:
+            print(f"Fehler beim Initialisieren der Datenbank: {str(e)}")
+
     app.run(host='0.0.0.0', port=5000) 

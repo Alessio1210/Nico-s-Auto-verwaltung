@@ -1,28 +1,18 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:14
-    environment:
-      POSTGRES_USER: fuhrparkuser
-      POSTGRES_PASSWORD: fuhrparkpass
-      POSTGRES_DB: fuhrparkdb
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
   backend:
     build: ./backend
     volumes:
       - ./backend:/app
     environment:
-      DATABASE_URL: postgres://fuhrparkuser:fuhrparkpass@postgres:5432/fuhrparkdb
       SECRET_KEY: your_secret_key
     ports:
       - "5000:5000"
-    depends_on:
-      - postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
 
   frontend:
     build: ./frontend
@@ -33,6 +23,12 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    networks:
+      - app-network
 
 volumes:
   postgres_data: 
+
+networks:
+  app-network:
+    driver: bridge 

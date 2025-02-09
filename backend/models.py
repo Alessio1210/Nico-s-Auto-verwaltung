@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 db = SQLAlchemy()
 
 class Vehicle(db.Model):
-    __tablename__ = 'vehicles'
+    __tablename__ = 'Autos'
     id = db.Column(db.Integer, primary_key=True)
     modell = db.Column(db.String(100), nullable=False)
     kennzeichen = db.Column(db.String(20), unique=True, nullable=False)
@@ -14,7 +14,7 @@ class Vehicle(db.Model):
     bookings = db.relationship("Booking", backref="vehicle", lazy=True)
 
 class User(db.Model):
-    __tablename__ = 'users'
+    __tablename__ = 'Users'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     rolle = db.Column(db.String(50), nullable=False)  # z. B. "Mitarbeiter" oder "Fuhrparkmitarbeiter"
@@ -30,10 +30,10 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 class Booking(db.Model):
-    __tablename__ = 'bookings'
+    __tablename__ = 'Bookings'
     id = db.Column(db.Integer, primary_key=True)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('Autos.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('Users.id'), nullable=False)
     startzeit = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     endzeit = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     status = db.Column(db.String(50), nullable=False, default='Angefragt')  # z. B. "Angefragt", "akzeptiert", "abgelehnt"
