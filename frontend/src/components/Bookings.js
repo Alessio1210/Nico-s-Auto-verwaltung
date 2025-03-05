@@ -1,118 +1,170 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import format from 'date-fns/format';
-import parse from 'date-fns/parse';
-import startOfWeek from 'date-fns/startOfWeek';
-import getDay from 'date-fns/getDay';
-import de from 'date-fns/locale/de';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 import axios from 'axios';
 import BookingForm from './BookingForm';
+import dayjs from 'dayjs';
+import 'dayjs/locale/de';
 
-const locales = {
-  'de': de,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
+dayjs.locale('de');
 
 function Bookings() {
   const [bookings, setBookings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [view, setView] = useState('list'); // 'list' oder 'form'
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
-
-  useEffect(() => {
-    fetchBookings();
-    fetchVehicles();
-  }, []);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchBookings = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/bookings');
+      console.log('Buchungen geladen:', response.data); // Debug-Log
       const formattedBookings = response.data.map(booking => ({
         ...booking,
-        start: new Date(booking.start_date),
-        end: new Date(booking.end_date),
-        title: `${booking.vehicle_name} - ${booking.employee_name}`
+        start_date: dayjs(booking.start_date),
+        end_date: dayjs(booking.end_date)
       }));
       setBookings(formattedBookings);
+      return formattedBookings;
     } catch (error) {
       console.error('Fehler beim Laden der Buchungen:', error);
+      throw error;
     }
   };
 
   const fetchVehicles = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/vehicles');
-      setVehicles(response.data);
+      console.log('Starte direkten Datenbank-Abruf der Fahrzeuge...'); // Debug Log
+      
+      // Direkter Datenbank-Abruf
+      const response = await axios.get('http://localhost:5000/fahrzeug/getAll');
+      console.log('Datenbank-Antwort:', response.data);
+      
+      if (!response.data) {
+        console.error('Keine Daten aus der Datenbank erhalten');
+        return [];
+      }
+
+      // Formatiere die Fahrzeuge aus der Datenbank
+      const formattedVehicles = response.data.map(vehicle => ({
+        id: vehicle.id.toString(),
+        modell: vehicle.modell,
+        kennzeichen: vehicle.kennzeichen
+      }));
+
+      console.log('Verarbeitete Fahrzeuge aus DB:', formattedVehicles);
+
+      setVehicles(formattedVehicles);
+      return formattedVehicles;
     } catch (error) {
-      console.error('Fehler beim Laden der Fahrzeuge:', error);
+      console.error('Fehler beim Datenbank-Abruf:', error);
+      setError('Fehler beim Laden der Fahrzeuge aus der Datenbank');
+      return [];
     }
   };
 
-  const handleSelectSlot = ({ start }) => {
-    setSelectedDate(start);
-    setSelectedBooking(null);
-    setShowBookingForm(true);
-  };
+  // Initialer Datenload
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('Starte initialen Datenladen...'); // Debug Log
+        
+        // Lade zuerst die Fahrzeuge
+        const vehiclesData = await fetchVehicles();
+        console.log('Fahrzeuge geladen:', vehiclesData);
+        
+        // Dann lade die Buchungen
+        const bookingsData = await fetchBookings();
+        console.log('Buchungen geladen:', bookingsData);
+        
+      } catch (error) {
+        console.error('Fehler beim Laden der Daten:', error);
+        setError('Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleSelectEvent = (event) => {
-    setSelectedBooking(event);
-    setShowBookingForm(true);
-  };
+    loadData();
+  }, []);
+
+  // Zusätzlicher useEffect für das Laden der Fahrzeuge beim Öffnen des Formulars
+  useEffect(() => {
+    if (view === 'form') {
+      console.log('Formular geöffnet, lade Fahrzeuge neu...'); // Debug-Log
+      fetchVehicles().catch(error => {
+        console.error('Fehler beim Nachladen der Fahrzeuge:', error);
+        alert('Fehler beim Laden der Fahrzeuge. Bitte versuchen Sie es später erneut.');
+      });
+    }
+  }, [view]);
 
   const handleBookingSubmit = async (bookingData) => {
     try {
       if (selectedBooking) {
-        // Buchung aktualisieren
         await axios.put(`http://localhost:5000/api/bookings/${selectedBooking.id}`, bookingData);
       } else {
-        // Neue Buchung erstellen
         await axios.post('http://localhost:5000/api/bookings', bookingData);
       }
-      fetchBookings();
-      setShowBookingForm(false);
+      await fetchBookings();
+      setView('list');
       setSelectedBooking(null);
     } catch (error) {
       console.error('Fehler beim Speichern der Buchung:', error);
+      alert('Fehler beim Speichern der Buchung. Bitte versuchen Sie es später erneut.');
     }
   };
 
-  const eventStyleGetter = (event) => {
-    let style = {
-      backgroundColor: '#3174ad',
-      borderRadius: '5px',
-      opacity: 0.8,
-      color: 'white',
-      border: '0px',
-      display: 'block'
-    };
-
-    switch (event.status) {
+  const getStatusColor = (status) => {
+    switch (status) {
       case 'Reserviert':
-        style.backgroundColor = '#fbbf24'; // Gelb
-        break;
+        return 'bg-yellow-100 text-yellow-800';
       case 'Ausgegeben':
-        style.backgroundColor = '#34d399'; // Grün
-        break;
+        return 'bg-green-100 text-green-800';
       case 'Zurückgegeben':
-        style.backgroundColor = '#9ca3af'; // Grau
-        break;
+        return 'bg-gray-100 text-gray-800';
       default:
-        break;
+        return 'bg-blue-100 text-blue-800';
     }
-
-    return {
-      style
-    };
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-red-500 text-center">
+          <p className="text-xl font-bold mb-2">Fehler</p>
+          <p>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Neu laden
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'form') {
+    console.log('Übergebe Fahrzeuge an Formular:', vehicles); // Debug-Log
+    return (
+      <BookingForm
+        onClose={() => setView('list')}
+        onSubmit={handleBookingSubmit}
+        booking={selectedBooking}
+        vehicles={vehicles}
+      />
+    );
+  }
 
   return (
     <div className="p-4">
@@ -121,7 +173,7 @@ function Bookings() {
         <button
           onClick={() => {
             setSelectedBooking(null);
-            setShowBookingForm(true);
+            setView('form');
           }}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
@@ -129,43 +181,82 @@ function Bookings() {
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4" style={{ height: '700px' }}>
-        <Calendar
-          localizer={localizer}
-          events={bookings}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: '100%' }}
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={handleSelectEvent}
-          selectable
-          eventPropGetter={eventStyleGetter}
-          messages={{
-            next: "Vor",
-            previous: "Zurück",
-            today: "Heute",
-            month: "Monat",
-            week: "Woche",
-            day: "Tag",
-            agenda: "Agenda",
-            date: "Datum",
-            time: "Zeit",
-            event: "Termin",
-            noEventsInRange: "Keine Buchungen in diesem Zeitraum"
-          }}
-          culture="de"
-        />
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Fahrzeug
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Mitarbeiter
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Von
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Bis
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Aktionen
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {bookings.map((booking) => (
+              <tr key={booking.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {booking.vehicle_name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {booking.employee_name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {booking.start_date.format('DD.MM.YYYY HH:mm')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {booking.end_date.format('DD.MM.YYYY HH:mm')}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                    {booking.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => {
+                      setSelectedBooking(booking);
+                      setView('form');
+                    }}
+                    className="text-indigo-600 hover:text-indigo-900 mr-4"
+                  >
+                    Bearbeiten
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Möchten Sie diese Buchung wirklich löschen?')) {
+                        try {
+                          await axios.delete(`http://localhost:5000/api/bookings/${booking.id}`);
+                          await fetchBookings();
+                        } catch (error) {
+                          console.error('Fehler beim Löschen der Buchung:', error);
+                          alert('Fehler beim Löschen der Buchung');
+                        }
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    Löschen
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      {showBookingForm && (
-        <BookingForm
-          onClose={() => setShowBookingForm(false)}
-          onSubmit={handleBookingSubmit}
-          booking={selectedBooking}
-          vehicles={vehicles}
-          initialDate={selectedDate}
-        />
-      )}
     </div>
   );
 }
