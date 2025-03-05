@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import VehicleDetail from './VehicleDetail';
 
 function VehicleList() {
   const [vehicles, setVehicles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   useEffect(() => {
+    console.log('Starte Fahrzeug-Abfrage...');
     axios.get('http://localhost:5000/api/vehicles')
       .then(response => {
+        console.log('Antwort vom Server:', response);
         setVehicles(response.data);
       })
-      .catch(error => console.error('Error fetching vehicles:', error));
+      .catch(error => {
+        console.error('Fehler beim Laden der Fahrzeuge:', error);
+        if (error.response) {
+          console.error('Antwort vom Server:', error.response.data);
+        }
+      });
   }, []);
 
   const filteredVehicles = vehicles.filter(vehicle => 
@@ -21,7 +30,7 @@ function VehicleList() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-900">Fahrzeugflotte</h2>
+        <h2 className="text-3xl font-bold text-gray-900">Fahrzeuge</h2>
         <button 
           onClick={() => window.location.href = 'http://localhost:5000/api/vehicles/export'}
           className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
@@ -42,7 +51,11 @@ function VehicleList() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredVehicles.map(vehicle => (
-          <div key={vehicle.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+          <div 
+            key={vehicle.id} 
+            className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => setSelectedVehicle(vehicle.id)}
+          >
             <div className="relative pb-48">
               <img 
                 src={vehicle.bild} 
@@ -66,6 +79,13 @@ function VehicleList() {
           </div>
         ))}
       </div>
+
+      {selectedVehicle && (
+        <VehicleDetail 
+          vehicleId={selectedVehicle} 
+          onClose={() => setSelectedVehicle(null)} 
+        />
+      )}
     </div>
   );
 }

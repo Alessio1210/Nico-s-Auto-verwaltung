@@ -1,11 +1,55 @@
 # Fuhrpark-Webapp
 
-Dieses Projekt ist eine vollständige Webapplikation zur Verwaltung eines Fuhrparks. Es umfasst:
+Eine Webanwendung zur Verwaltung eines Fuhrparks mit React Frontend und Flask Backend.
 
-- **Frontend**: Eine React-Anwendung (mit TailwindCSS für das Styling)
-- **Backend**: Eine Flask REST API (mit Endpunkten für Fahrzeuge, Buchungen und Benutzer)
-- **Datenbank**: PostgreSQL
-- **Deployment**: Docker & Docker Compose
+## Installation
+
+### Backend (Python/Flask)
+1. Installiere Python 3.9 oder höher
+2. Navigiere in den backend-Ordner:
+   ```bash
+   cd backend
+   ```
+3. Erstelle eine virtuelle Umgebung:
+   ```bash
+   python -m venv venv
+   ```
+4. Aktiviere die virtuelle Umgebung:
+   - Windows: `venv\Scripts\activate`
+   - Linux/Mac: `source venv/bin/activate`
+5. Installiere die Abhängigkeiten:
+   ```bash
+   pip install -r requirements.txt
+   ```
+6. Starte den Flask-Server:
+   ```bash
+   python app.py
+   ```
+
+### Frontend (React)
+1. Installiere Node.js (Version 16 oder höher)
+2. Navigiere in den frontend-Ordner:
+   ```bash
+   cd frontend
+   ```
+3. Installiere die Abhängigkeiten:
+   ```bash
+   npm install
+   ```
+4. Starte die Entwicklungsumgebung:
+   ```bash
+   npm start
+   ```
+
+## Verwendung
+- Frontend läuft auf: http://localhost:3000
+- Backend-API läuft auf: http://localhost:5000
+
+## Datenbank
+Die Anwendung verwendet SQL Server Express. Stelle sicher, dass:
+1. SQL Server Express installiert ist
+2. Die Datenbank "Fuhrpark" existiert
+3. Windows-Authentifizierung aktiviert ist
 
 ## Funktionen
 
@@ -37,26 +81,7 @@ Dieses Projekt ist eine vollständige Webapplikation zur Verwaltung eines Fuhrpa
 
 - **Frontend**: React, TailwindCSS  
 - **Backend**: Flask, Flask-SQLAlchemy, Flask-Cors  
-- **Datenbank**: PostgreSQL  
-- **Deployment**: Docker & Docker Compose
-
-## Setup mit Docker
-
-1. **Voraussetzungen**  
-   Stelle sicher, dass Docker und Docker Compose auf deinem System installiert sind.
-
-2. **Projekt starten**  
-   - Klone dieses Repository oder lade die Dateien in einen Ordner (z. B. `fuhrpark-webapp`).
-   - Navigiere in das Projektverzeichnis.
-   - Starte alle Container mit:
-     ```
-     docker-compose up --build
-     ```
-   - Das Backend ist dann unter `http://localhost:5000` erreichbar.
-   - Das Frontend läuft unter `http://localhost:3000`.
-
-3. **Datenbank**  
-   Beim ersten Start werden die Datenbanktabellen automatisch erstellt. Für weitere Änderungen empfiehlt sich der Einsatz von Migrations-Tools (z. B. Flask-Migrate).
+- **Datenbank**: SQL Server Express  
 
 ## Weiterentwicklung
 

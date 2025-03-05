@@ -3,14 +3,21 @@ import os
 class Config:
     DEBUG = True
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your_secret_key')
-    # SQL Server Verbindung für lokale Entwicklung
+    
+    # SQL Server Verbindung für lokale Entwicklung mit spezifischen Treiber-Optionen
     SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc:///?odbc_connect=' + ';'.join([
-        'DRIVER={ODBC Driver 18 for SQL Server}',  # Wichtig: Exakter Treibername
-        'SERVER=DESKTOP-QD39JFR',  # Dein lokaler Server
+        'DRIVER={ODBC Driver 17 for SQL Server}',  # Aktuellerer Treiber
+        'SERVER=DESKTOP-QD39JFR\\SQLEXPRESS',
         'DATABASE=Fuhrpark',
-        'Trusted_Connection=yes',  # Windows-Authentifizierung
+        'Trusted_Connection=yes',
         'TrustServerCertificate=yes',
-        'Encrypt=no',  # Deaktiviere Verschlüsselung für lokale Entwicklung
-        'timeout=60'  # Erhöhter Timeout für Entwicklung
+        'MARS_Connection=yes',
+        'MultipleActiveResultSets=True'
     ])
-    SQLALCHEMY_TRACK_MODIFICATIONS = False 
+    
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+    SQLALCHEMY_ECHO = True  # SQL-Ausgabe für Debugging 
