@@ -5,7 +5,8 @@ import {
   Container, Box, Paper, Grid, Typography, 
   Divider, CircularProgress, Snackbar, Alert, 
   Table, TableHead, TableBody, TableRow, TableCell, 
-  Button, Stack, Card, CardContent, Chip, IconButton
+  Button, Stack, Card, CardContent, Chip, IconButton,
+  Tabs, Tab
 } from '@mui/material';
 
 dayjs.locale('de');
@@ -57,7 +58,7 @@ const saveLocalBookings = (bookings) => {
   }
 };
 
-function Bookings() {
+function Bookings({ isUserView = false }) {
   // Zustandsvariablen
   const [loading, setLoading] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
@@ -91,6 +92,75 @@ function Bookings() {
 
   // State für lokale Buchungen
   const [localBookings, setLocalBookings] = useState(getLocalBookings());
+
+  // Neue State-Variable für den aktiven Tab
+  const [activeTab, setActiveTab] = useState(0); // 0 = Buchungen, 1 = Anfragen
+  
+  // Dummy-Daten für Anfragen
+  const [requests, setRequests] = useState([
+    {
+      id: 1,
+      userId: 101,
+      userName: 'Max Mustermann',
+      userDepartment: 'IT',
+      vehicleId: 1,
+      vehicleModel: 'BMW M1',
+      vehicleLicensePlate: 'M-BW 1234',
+      startDateTime: '2025-03-15T08:00:00',
+      endDateTime: '2025-03-15T17:00:00',
+      purpose: 'Kundenbesuch in Stuttgart',
+      destination: 'Stuttgart',
+      status: 'pending',
+      requestDate: '2025-03-01T10:30:00'
+    },
+    {
+      id: 2,
+      userId: 102,
+      userName: 'Anna Schmidt',
+      userDepartment: 'Marketing',
+      vehicleId: 2,
+      vehicleModel: 'VW Polo',
+      vehicleLicensePlate: 'M-VW 5678',
+      startDateTime: '2025-03-20T09:00:00',
+      endDateTime: '2025-03-20T16:00:00',
+      purpose: 'Messe-Besuch',
+      destination: 'München',
+      status: 'approved',
+      requestDate: '2025-03-02T14:15:00'
+    },
+    {
+      id: 3, 
+      userId: 104,
+      userName: 'Laura Müller',
+      userDepartment: 'Produktion',
+      vehicleId: 4,
+      vehicleModel: 'Mercedes GLE',
+      vehicleLicensePlate: 'M-MB 3456',
+      startDateTime: '2025-03-25T10:00:00',
+      endDateTime: '2025-03-25T18:30:00',
+      purpose: 'Transport von Materialien',
+      destination: 'Augsburg',
+      status: 'pending',
+      requestDate: '2025-03-05T08:10:00'
+    }
+  ]);
+  
+  // Hilfsfunktion zur Formatierung von Datum/Zeit für die Anfragen
+  const formatDateTime = (dateTimeString) => {
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('de-DE', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
+  // Tab-Wechsel-Handler
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
 
   // Laden aller Daten beim Initialisieren der Komponente
   useEffect(() => {
@@ -589,6 +659,121 @@ function Bookings() {
     );
   };
 
+  // Funktion zum Rendern der Anfragen-Liste
+  const renderRequestsTab = () => {
+    return (
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Fahrzeuganfragen
+        </Typography>
+        <Paper>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Benutzer</TableCell>
+                <TableCell>Fahrzeug</TableCell>
+                <TableCell>Zeitraum</TableCell>
+                <TableCell>Zweck</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Aktionen</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {requests.map((request) => (
+                <TableRow key={request.id} hover>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">{request.userName}</Typography>
+                      <Typography variant="caption" color="textSecondary">{request.userDepartment}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">{request.vehicleModel}</Typography>
+                      <Typography variant="caption" color="textSecondary">{request.vehicleLicensePlate}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">{formatDateTime(request.startDateTime)}</Typography>
+                      <Typography variant="caption" color="textSecondary">bis {formatDateTime(request.endDateTime)}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">{request.purpose}</Typography>
+                      <Typography variant="caption" color="textSecondary">{request.destination}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={
+                        request.status === 'pending' ? 'Ausstehend' :
+                        request.status === 'approved' ? 'Genehmigt' :
+                        request.status === 'rejected' ? 'Abgelehnt' : 'Unbekannt'
+                      }
+                      color={
+                        request.status === 'pending' ? 'warning' :
+                        request.status === 'approved' ? 'success' :
+                        request.status === 'rejected' ? 'error' : 'default'
+                      }
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Button 
+                        variant="outlined" 
+                        size="small" 
+                        color="primary"
+                        onClick={() => {
+                          // In einer echten Anwendung: Details anzeigen
+                          console.log("Details für Anfrage:", request.id);
+                        }}
+                      >
+                        Details
+                      </Button>
+                      {request.status === 'pending' && (
+                        <>
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            color="success"
+                            onClick={() => {
+                              // In einer echten Anwendung: Anfrage genehmigen
+                              setRequests(requests.map(req => 
+                                req.id === request.id ? {...req, status: 'approved'} : req
+                              ));
+                            }}
+                          >
+                            Genehmigen
+                          </Button>
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            color="error"
+                            onClick={() => {
+                              // In einer echten Anwendung: Anfrage ablehnen
+                              setRequests(requests.map(req => 
+                                req.id === request.id ? {...req, status: 'rejected'} : req
+                              ));
+                            }}
+                          >
+                            Ablehnen
+                          </Button>
+                        </>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      </Box>
+    );
+  };
+
   // Render-Funktion für Formularsicht
   if (showForm) {
     return (
@@ -912,161 +1097,181 @@ function Bookings() {
 
   // Render-Funktion für Listenansicht
   return (
-    <Container maxWidth="lg" sx={{ py: 4, position: 'relative', overflow: 'visible' }}>
-      {/* Status-Banner wird nur angezeigt, wenn es ein Problem mit dem Backend gibt */}
-      {localMode && backendStatus !== 'Verbunden' && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <strong>Hinweis:</strong> Buchungen werden im Browser gespeichert, da das Backend nicht erreichbar ist.
-        </Alert>
-      )}
-      
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Buchungsverwaltung
-          </Typography>
-        </Box>
+    <Container maxWidth="xl">
+      <Box my={3}>
+        <Typography variant="h4" gutterBottom>
+          {isUserView ? "Meine Buchungen" : "Buchungsverwaltung"}
+        </Typography>
         
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={() => {
-            setEditingId(null);
-            setShowForm(true);
-          }}
-          disabled={loading}
-        >
-          Neue Buchung
-        </Button>
-      </Box>
+        {!isUserView && (
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tabs value={activeTab} onChange={handleTabChange} aria-label="buchungs-tabs">
+              <Tab label="Buchungen" />
+              <Tab label="Anfragen" />
+            </Tabs>
+          </Box>
+        )}
+        
+        {loading ? (
+          <Box display="flex" justifyContent="center" my={4}>
+            <CircularProgress />
+          </Box>
+        ) : activeTab === 0 ? (
+          <Container maxWidth="lg" sx={{ py: 4, position: 'relative', overflow: 'visible' }}>
+            {/* Status-Banner wird nur angezeigt, wenn es ein Problem mit dem Backend gibt */}
+            {localMode && backendStatus !== 'Verbunden' && (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <strong>Hinweis:</strong> Buchungen werden im Browser gespeichert, da das Backend nicht erreichbar ist.
+              </Alert>
+            )}
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+              <Box>
+                <Typography variant="h4" component="h1">
+                  Buchungsverwaltung
+                </Typography>
+              </Box>
+              
+              <Button 
+                variant="contained" 
+                color="primary" 
+                onClick={() => {
+                  setEditingId(null);
+                  setShowForm(true);
+                }}
+                disabled={loading}
+              >
+                Neue Buchung
+              </Button>
+            </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : bookings.length === 0 ? (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary" gutterBottom>
-            Keine Buchungen vorhanden
-          </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => {
-              setEditingId(null);
-              setShowForm(true);
-            }}
-            sx={{ mt: 2 }}
-            disabled={loading}
-          >
-            Erste Buchung erstellen
-          </Button>
-        </Paper>
-      ) : (
-        <Paper elevation={3} sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
-              <TableRow>
-                <TableCell><Typography variant="subtitle2">Fahrzeug</Typography></TableCell>
-                <TableCell><Typography variant="subtitle2">Zeitraum</Typography></TableCell>
-                <TableCell><Typography variant="subtitle2">Mitarbeiter</Typography></TableCell>
-                <TableCell><Typography variant="subtitle2">Zweck</Typography></TableCell>
-                <TableCell><Typography variant="subtitle2">Status</Typography></TableCell>
-                <TableCell align="right"><Typography variant="subtitle2">Aktionen</Typography></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {bookings.map((booking) => (
-                <TableRow 
-                  key={booking.id} 
-                  hover
-                  sx={booking.id.toString().startsWith('local-') ? { backgroundColor: '#fff8e1' } : {}}
+            {bookings.length === 0 ? (
+              <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  Keine Buchungen vorhanden
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => {
+                    setEditingId(null);
+                    setShowForm(true);
+                  }}
+                  sx={{ mt: 2 }}
+                  disabled={loading}
                 >
-                  <TableCell>
-                    <Typography variant="body2">
-                      {booking.vehicle_name || 'Unbekanntes Fahrzeug'}
-                    </Typography>
-                    {booking.id.toString().startsWith('local-') && (
-                      <Typography variant="caption" color="text.secondary">
-                        (Lokal gespeichert)
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {booking.start_date.format('DD.MM.YYYY HH:mm')}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      bis {booking.end_date.format('DD.MM.YYYY HH:mm')}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {booking.employee_name || 'Nicht angegeben'}
-                    </Typography>
-                    {booking.department && (
-                      <Typography variant="body2" color="text.secondary">
-                        {booking.department}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {booking.purpose || 'Kein Zweck angegeben'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={booking.status || 'Unbekannt'} 
-                      size="small"
-                      color={booking.status === 'Reserviert' ? 'warning' : 
-                             booking.status === 'Ausgegeben' ? 'success' : 'info'}
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton 
-                      size="small" 
-                      color="primary" 
-                      onClick={() => handleEdit(booking)}
-                      title="Bearbeiten"
-                    >
-                      E
-                    </IconButton>
-                    <IconButton 
-                      size="small" 
-                      color="error" 
-                      onClick={() => handleDelete(booking.id)}
-                      title="Löschen"
-                    >
-                      X
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
-
-      {/* Benachrichtigungen */}
-      <Snackbar 
-        open={showAlert} 
-        autoHideDuration={6000} 
-        onClose={() => setShowAlert(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ zIndex: 10000 }}
-      >
-        <Alert onClose={() => setShowAlert(false)} severity={alertSeverity} sx={{ width: '100%' }}>
-          {alertMessage}
-        </Alert>
-      </Snackbar>
+                  Erste Buchung erstellen
+                </Button>
+              </Paper>
+            ) : (
+              <Paper elevation={3} sx={{ overflowX: 'auto' }}>
+                <Table>
+                  <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableRow>
+                      <TableCell><Typography variant="subtitle2">Fahrzeug</Typography></TableCell>
+                      <TableCell><Typography variant="subtitle2">Zeitraum</Typography></TableCell>
+                      <TableCell><Typography variant="subtitle2">Mitarbeiter</Typography></TableCell>
+                      <TableCell><Typography variant="subtitle2">Zweck</Typography></TableCell>
+                      <TableCell><Typography variant="subtitle2">Status</Typography></TableCell>
+                      <TableCell align="right"><Typography variant="subtitle2">Aktionen</Typography></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {bookings.map((booking) => (
+                      <TableRow 
+                        key={booking.id} 
+                        hover
+                        sx={booking.id.toString().startsWith('local-') ? { backgroundColor: '#fff8e1' } : {}}
+                      >
+                        <TableCell>
+                          <Typography variant="body2">
+                            {booking.vehicle_name || 'Unbekanntes Fahrzeug'}
+                          </Typography>
+                          {booking.id.toString().startsWith('local-') && (
+                            <Typography variant="caption" color="text.secondary">
+                              (Lokal gespeichert)
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {booking.start_date.format('DD.MM.YYYY HH:mm')}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            bis {booking.end_date.format('DD.MM.YYYY HH:mm')}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {booking.employee_name || 'Nicht angegeben'}
+                          </Typography>
+                          {booking.department && (
+                            <Typography variant="body2" color="text.secondary">
+                              {booking.department}
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {booking.purpose || 'Kein Zweck angegeben'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={booking.status || 'Unbekannt'} 
+                            size="small"
+                            color={booking.status === 'Reserviert' ? 'warning' : 
+                                   booking.status === 'Ausgegeben' ? 'success' : 'info'}
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton 
+                            size="small" 
+                            color="primary" 
+                            onClick={() => handleEdit(booking)}
+                            title="Bearbeiten"
+                          >
+                            E
+                          </IconButton>
+                          <IconButton 
+                            size="small" 
+                            color="error" 
+                            onClick={() => handleDelete(booking.id)}
+                            title="Löschen"
+                          >
+                            X
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Paper>
+            )}
+          </Container>
+        ) : (
+          // Tab für Anfragen
+          renderRequestsTab()
+        )}
+        
+        {/* Benachrichtigungen */}
+        <Snackbar 
+          open={showAlert} 
+          autoHideDuration={6000} 
+          onClose={() => setShowAlert(false)}
+        >
+          <Alert onClose={() => setShowAlert(false)} severity={alertSeverity} sx={{ width: '100%' }}>
+            {alertMessage}
+          </Alert>
+        </Snackbar>
+      </Box>
     </Container>
   );
 }
