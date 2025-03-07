@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import VehicleList from './components/VehicleList';
 import GlobalDashboard from './components/GlobalDashboard';
-import BookingForm from './components/BookingForm';
 import StatisticsDashboard from './components/StatisticsDashboard';
+import Bookings from './components/Bookings';
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -15,7 +15,7 @@ function App() {
       case 'vehicles':
         return <VehicleList />;
       case 'booking':
-        return <BookingForm />;
+        return <Bookings />;
       case 'statistics':
         return <StatisticsDashboard />;
       default:
@@ -26,7 +26,7 @@ function App() {
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-8" style={{ overflow: 'visible' }}>
         <div className="max-w-7xl mx-auto">
           {renderContent()}
         </div>

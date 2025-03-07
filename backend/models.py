@@ -8,20 +8,60 @@ class Vehicle(db.Model):
     __tablename__ = 'Autos'
     id = db.Column(db.Integer, primary_key=True)
     modell = db.Column(db.String(100), nullable=False)
-    kennzeichen = db.Column(db.String(20), unique=True, nullable=False)
-    bild = db.Column(db.String(255))
+    kennzeichen = db.Column(db.String(20), nullable=False)
+    bild = db.Column(db.String(255))  # Bestehender Bildpfad
     status = db.Column(db.String(50), nullable=False, default='verfügbar')
     kilometerstand = db.Column(db.Integer, default=0)
     tankstand = db.Column(db.Integer, default=100)  # in Prozent
     letzte_wartung = db.Column(db.DateTime)
     naechste_wartung = db.Column(db.DateTime)
+    # Neue Felder, die optional sind
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=True)
+    tuev_datum = db.Column(db.Date, nullable=True)
+    au_datum = db.Column(db.Date, nullable=True)
     
-    # Beziehungen
+    # Beziehungen - bestehende Struktur beibehalten
     bookings = db.relationship("Booking", backref="vehicle", lazy=True)
     maintenance_records = db.relationship("MaintenanceRecord", backref="vehicle", lazy=True)
     documents = db.relationship("VehicleDocument", backref="vehicle", lazy=True)
     damage_reports = db.relationship("DamageReport", backref="vehicle", lazy=True)
     fuel_logs = db.relationship("FuelLog", backref="vehicle", lazy=True)
+    
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'modell': self.modell,
+            'kennzeichen': self.kennzeichen,
+            'kilometerstand': self.kilometerstand,
+            'status': self.status,
+            'bild': self.bild
+        }
+        
+        # Debug-Ausgabe für die Datumswerte
+        print(f"Vehicle {self.id}: Raw TÜV-Datum = {self.tuev_datum}, Raw AU-Datum = {self.au_datum}")
+        
+        # Nur hinzufügen, wenn vorhanden
+        if hasattr(self, 'tuev_datum') and self.tuev_datum:
+            try:
+                data['tuev_datum'] = self.tuev_datum.isoformat()
+                print(f"Formatiertes TÜV-Datum: {data['tuev_datum']}")
+            except Exception as e:
+                print(f"Fehler bei der Formatierung des TÜV-Datums: {e}")
+                data['tuev_datum'] = None
+        else:
+            data['tuev_datum'] = None
+            
+        if hasattr(self, 'au_datum') and self.au_datum:
+            try:
+                data['au_datum'] = self.au_datum.isoformat()
+                print(f"Formatiertes AU-Datum: {data['au_datum']}")
+            except Exception as e:
+                print(f"Fehler bei der Formatierung des AU-Datums: {e}")
+                data['au_datum'] = None
+        else:
+            data['au_datum'] = None
+            
+        return data
 
 class User(db.Model):
     __tablename__ = 'Users'
@@ -105,4 +145,42 @@ class FuelLog(db.Model):
     cost_per_liter = db.Column(db.Float, nullable=False)
     total_cost = db.Column(db.Float, nullable=False)
     mileage = db.Column(db.Integer, nullable=False)
-    fuel_type = db.Column(db.String(50))  # Diesel, Benzin, etc. 
+    fuel_type = db.Column(db.String(50))  # Diesel, Benzin, etc.
+
+class Audit(db.Model):
+    __tablename__ = 'Audit_Log'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    aktion = db.Column(db.String(50), nullable=False)
+    fahrzeug_id = db.Column(db.Integer)
+    beschreibung = db.Column(db.String(500))
+    alte_werte = db.Column(db.JSON)
+    neue_werte = db.Column(db.JSON)
+
+# Neue Statistik-Modell-Klassen
+class StatisticsData(db.Model):
+    __tablename__ = 'Statistiken'
+    id = db.Column(db.Integer, primary_key=True)
+    datum = db.Column(db.Date, nullable=False)
+    kategorie = db.Column(db.String(50), nullable=False)  # inspektionen, fahrtzeiten, kmstand, etc.
+    unter_kategorie = db.Column(db.String(50))  # z.B. Fahrzeugmarke oder Kraftstofftyp
+    wert = db.Column(db.Float, nullable=False)  # numerischer Wert
+    einheit = db.Column(db.String(20))  # EUR, km, h, L, kWh, etc.
+    zusatzinfo = db.Column(db.JSON)  # zusätzliche Informationen
+
+class DepartmentUsage(db.Model):
+    __tablename__ = 'Abteilungs_Nutzung'
+    id = db.Column(db.Integer, primary_key=True)
+    datum = db.Column(db.Date, nullable=False)
+    abteilung = db.Column(db.String(100), nullable=False)
+    fahrzeug_id = db.Column(db.Integer, db.ForeignKey('Autos.id'))
+    nutzungsdauer = db.Column(db.Float)  # in Stunden
+    gefahrene_km = db.Column(db.Float)
+    vehicle = db.relationship("Vehicle", backref="department_usages")
+    
+class DeviceStats(db.Model):
+    __tablename__ = 'Geraetestatistik'
+    id = db.Column(db.Integer, primary_key=True)
+    datum = db.Column(db.Date, nullable=False)
+    geraetetyp = db.Column(db.String(50), nullable=False)  # mobile oder desktop
+    anzahl_zugriffe = db.Column(db.Integer, nullable=False) 
