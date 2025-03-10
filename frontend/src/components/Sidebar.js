@@ -11,7 +11,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
-function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActiveView }) {
+function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActiveView, user }) {
   // Icon-Mapping, um die Icon-Namen in tatsächliche Icons umzuwandeln
   const iconMap = {
     'HomeIcon': HomeIcon,
@@ -20,6 +20,12 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
     'ChartBarIcon': ChartBarIcon,
     'UserIcon': UserIcon,
     'InboxIcon': InboxIcon
+  };
+
+  // Benutzerinfo
+  const userInfo = user || {
+    name: isAdmin ? 'Administrator' : 'Benutzer',
+    department: isAdmin ? 'IT-Administration' : 'Allgemein'
   };
 
   // Menüpunkte basierend auf der Benutzerrolle
@@ -41,6 +47,13 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
   };
 
   const items = getMenuItems();
+
+  // Funktion zum Abmelden
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    }
+  };
 
   return (
     <>
@@ -65,7 +78,20 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
           </button>
         </div>
         
-        <nav className="mt-6">
+        {/* Benutzerinformationen */}
+        <div className="px-6 py-4 border-t border-b border-gray-200">
+          <div className="flex items-center">
+            <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+              <UserIcon className="h-6 w-6" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-700">{userInfo.name}</p>
+              <p className="text-xs text-gray-500">{userInfo.department}</p>
+            </div>
+          </div>
+        </div>
+        
+        <nav className="mt-6 flex flex-col h-[calc(100%-180px)]">
           {items.map((item) => {
             // Icon-Komponente aus dem Mapping abrufen
             const IconComponent = iconMap[item.icon] || HomeIcon; // Fallback auf HomeIcon
@@ -84,10 +110,13 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
             );
           })}
           
+          {/* Spacer to push logout button to the bottom */}
+          <div className="flex-grow"></div>
+          
           {/* Logout-Button */}
           <button
-            onClick={onLogout}
-            className="w-full flex items-center px-6 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-auto"
+            onClick={handleLogout}
+            className="w-full flex items-center px-6 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-3" />
             <span className="font-medium">Abmelden</span>

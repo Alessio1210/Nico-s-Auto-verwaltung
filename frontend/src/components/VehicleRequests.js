@@ -18,6 +18,10 @@ function VehicleRequests() {
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
   const [loading, setLoading] = useState(true);
   
+  // Archiv-Funktionalität
+  const [archivedRequests, setArchivedRequests] = useState([]);
+  const [showArchive, setShowArchive] = useState(false);
+  
   // Detailansicht für eine ausgewählte Anfrage
   const [selectedRequest, setSelectedRequest] = useState(null);
   
@@ -123,6 +127,13 @@ function VehicleRequests() {
           const parsedRequests = JSON.parse(savedRequests);
           console.log("Geladene Benutzeranfragen aus localStorage:", parsedRequests);
           
+          // Lade die gespeicherten Status aus approvedRequests und rejectedRequests
+          const approvedRequestIds = JSON.parse(localStorage.getItem('approvedRequests') || '[]');
+          const rejectedRequestIds = JSON.parse(localStorage.getItem('rejectedRequests') || '[]');
+          
+          console.log("Gespeicherte genehmigte Anfragen:", approvedRequestIds);
+          console.log("Gespeicherte abgelehnte Anfragen:", rejectedRequestIds);
+          
           // Konvertiere die Anfragen in das Format, das vom Admin erwartet wird
           userRequests = parsedRequests.map(req => {
             // Konvertiere das Format, falls notwendig
@@ -134,6 +145,15 @@ function VehicleRequests() {
             if (status === 'Ausstehend') status = 'pending';
             if (status === 'Genehmigt') status = 'approved';
             if (status === 'Abgelehnt') status = 'rejected';
+            
+            // Überschreibe den Status basierend auf den gespeicherten Status-IDs
+            if (approvedRequestIds.includes(req.id)) {
+              status = 'approved';
+              console.log(`Anfrage ${req.id} ist als genehmigt gespeichert und wird entsprechend angezeigt.`);
+            } else if (rejectedRequestIds.includes(req.id)) {
+              status = 'rejected';
+              console.log(`Anfrage ${req.id} ist als abgelehnt gespeichert und wird entsprechend angezeigt.`);
+            }
             
             return {
               id: req.id,
@@ -170,8 +190,27 @@ function VehicleRequests() {
         console.log(`${userRequests.length} Benutzeranfragen wurden geladen und mit den Demo-Anfragen kombiniert.`);
       }
       
-      setRequests(allRequests);
-      setFilteredRequests(allRequests);
+      // Teile die Anfragen in aktuelle und archivierte auf
+      const current = [];
+      const archived = [];
+      
+      allRequests.forEach(request => {
+        if (shouldBeArchived(request)) {
+          archived.push(request);
+        } else {
+          current.push(request);
+        }
+      });
+      
+      // Sortiere die Anfragen nach Datum (neueste zuerst)
+      current.sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
+      archived.sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
+      
+      console.log(`${current.length} aktuelle Anfragen und ${archived.length} archivierte Anfragen.`);
+      
+      setRequests(current);
+      setArchivedRequests(archived);
+      setFilteredRequests(current); // Standardmäßig zeige aktuelle Anfragen
       setLoading(false);
     }, 1000);
   }, []);
@@ -179,11 +218,27 @@ function VehicleRequests() {
   // Filtern der Anfragen nach Status
   useEffect(() => {
     if (filter === 'all') {
-      setFilteredRequests(requests);
+      setFilteredRequests(showArchive ? archivedRequests : requests.filter(req => !shouldBeArchived(req)));
     } else {
-      setFilteredRequests(requests.filter(request => request.status === filter));
+      const filteredByStatus = requests.filter(request => request.status === filter);
+      setFilteredRequests(showArchive 
+        ? archivedRequests.filter(request => request.status === filter)
+        : filteredByStatus.filter(req => !shouldBeArchived(req)));
     }
-  }, [filter, requests]);
+  }, [filter, requests, archivedRequests, showArchive]);
+
+  // Prüfen, ob eine Anfrage archiviert werden sollte
+  const shouldBeArchived = (request) => {
+    const now = new Date();
+    const endDate = new Date(request.endDateTime);
+    
+    // Nur Anfragen archivieren, deren Enddatum in der Vergangenheit liegt (abgeschlossene Termine)
+    if (endDate < now) {
+      return true;
+    }
+    
+    return false;
+  };
 
   // Hilfsfunktion zur Formatierung von Datum/Zeit
   const formatDateTime = (dateTimeString) => {
@@ -228,28 +283,23 @@ function VehicleRequests() {
   // Handler für die Genehmigung einer Anfrage
   const handleApprove = (requestId, note = '') => {
     // In einer echten Anwendung: API-Aufruf zur Genehmigung der Anfrage
-    const updatedRequests = requests.map(req => 
-      req.id === requestId 
-        ? {
-            ...req, 
-            status: 'approved', 
-            responseDate: new Date().toISOString(),
-            responseNote: note || null
-          } 
-        : req
-    );
+    // Dieser Teil würde normalerweise den API-Aufruf implementieren
     
-    setRequests(updatedRequests);
-    
-    // Filterliste aktualisieren
-    if (filter === 'all') {
-      setFilteredRequests(updatedRequests);
-    } else {
-      setFilteredRequests(updatedRequests.filter(request => request.status === filter));
-    }
-    
-    // Aktualisiere auch den localStorage, falls die Anfrage dort gespeichert ist
+    // Speichere die genehmigte Anfrage in einer separaten Variable im localStorage
     try {
+      // Speichere die ID in der Liste der genehmigten Anfragen
+      const approvedRequests = JSON.parse(localStorage.getItem('approvedRequests') || '[]');
+      if (!approvedRequests.includes(requestId)) {
+        approvedRequests.push(requestId);
+        localStorage.setItem('approvedRequests', JSON.stringify(approvedRequests));
+      }
+      
+      // Entferne die ID aus der Liste der abgelehnten Anfragen, falls vorhanden
+      const rejectedRequests = JSON.parse(localStorage.getItem('rejectedRequests') || '[]');
+      const updatedRejectedRequests = rejectedRequests.filter(id => id !== requestId);
+      localStorage.setItem('rejectedRequests', JSON.stringify(updatedRejectedRequests));
+      
+      // Aktualisiere den localStorage, falls die Anfrage dort gespeichert ist
       const savedRequests = localStorage.getItem('vehicleRequests');
       if (savedRequests) {
         let userRequests = JSON.parse(savedRequests);
@@ -258,50 +308,101 @@ function VehicleRequests() {
         if (requestIndex !== -1) {
           userRequests[requestIndex] = {
             ...userRequests[requestIndex],
-            status: 'approved', // Hier 'approved' verwenden, da es später wieder konvertiert wird
+            status: 'approved',
             responseDate: new Date().toISOString(),
             responseNote: note || null
           };
           
+          // Speichere die Änderungen im localStorage
           localStorage.setItem('vehicleRequests', JSON.stringify(userRequests));
           console.log("Anfrage im localStorage aktualisiert (genehmigt):", requestId);
         }
       }
+      
+      // Bestimme, ob die Anfrage in den aktuellen oder archivierten Anfragen ist
+      const isInCurrentRequests = requests.some(req => req.id === requestId);
+      const isInArchivedRequests = archivedRequests.some(req => req.id === requestId);
+      
+      // Aktualisiere den entsprechenden State
+      if (isInCurrentRequests) {
+        const updatedRequests = requests.map(req => 
+          req.id === requestId 
+            ? {
+                ...req, 
+                status: 'approved', 
+                responseDate: new Date().toISOString(),
+                responseNote: note || null
+              } 
+            : req
+        );
+        
+        setRequests(updatedRequests);
+        
+        // Filterliste aktualisieren, wenn aktuelle Anfragen angezeigt werden
+        if (!showArchive) {
+          if (filter === 'all') {
+            setFilteredRequests(updatedRequests);
+          } else {
+            setFilteredRequests(updatedRequests.filter(request => request.status === filter));
+          }
+        }
+      }
+      
+      if (isInArchivedRequests) {
+        const updatedArchived = archivedRequests.map(req => 
+          req.id === requestId 
+            ? {
+                ...req, 
+                status: 'approved', 
+                responseDate: new Date().toISOString(),
+                responseNote: note || null
+              } 
+            : req
+        );
+        
+        setArchivedRequests(updatedArchived);
+        
+        // Filterliste aktualisieren, wenn archivierte Anfragen angezeigt werden
+        if (showArchive) {
+          if (filter === 'all') {
+            setFilteredRequests(updatedArchived);
+          } else {
+            setFilteredRequests(updatedArchived.filter(request => request.status === filter));
+          }
+        }
+      }
+      
+      // Schließen der Detailansicht, falls geöffnet
+      if (selectedRequest?.id === requestId) {
+        setSelectedRequest(null);
+      }
+      
     } catch (err) {
       console.error("Fehler beim Aktualisieren des localStorage:", err);
-    }
-    
-    // Schließen der Detailansicht, falls geöffnet
-    if (selectedRequest?.id === requestId) {
-      setSelectedRequest(null);
+      alert("Es ist ein Fehler beim Speichern der Genehmigung aufgetreten. Bitte versuchen Sie es erneut.");
     }
   };
 
   // Handler für die Ablehnung einer Anfrage
   const handleReject = (requestId, note = '') => {
     // In einer echten Anwendung: API-Aufruf zur Ablehnung der Anfrage
-    const updatedRequests = requests.map(req => 
-      req.id === requestId 
-        ? {
-            ...req, 
-            status: 'rejected', 
-            responseDate: new Date().toISOString(),
-            responseNote: note || 'Anfrage abgelehnt'
-          } 
-        : req
-    );
+    // Dieser Teil würde normalerweise den API-Aufruf implementieren
     
-    setRequests(updatedRequests);
-    
-    // Filterliste aktualisieren
-    if (filter === 'all') {
-      setFilteredRequests(updatedRequests);
-    } else {
-      setFilteredRequests(updatedRequests.filter(request => request.status === filter));
-    }
-    
-    // Aktualisiere auch den localStorage, falls die Anfrage dort gespeichert ist
+    // Speichere die abgelehnte Anfrage in einer separaten Variable im localStorage
     try {
+      // Speichere die ID in der Liste der abgelehnten Anfragen
+      const rejectedRequests = JSON.parse(localStorage.getItem('rejectedRequests') || '[]');
+      if (!rejectedRequests.includes(requestId)) {
+        rejectedRequests.push(requestId);
+        localStorage.setItem('rejectedRequests', JSON.stringify(rejectedRequests));
+      }
+      
+      // Entferne die ID aus der Liste der genehmigten Anfragen, falls vorhanden
+      const approvedRequests = JSON.parse(localStorage.getItem('approvedRequests') || '[]');
+      const updatedApprovedRequests = approvedRequests.filter(id => id !== requestId);
+      localStorage.setItem('approvedRequests', JSON.stringify(updatedApprovedRequests));
+      
+      // Aktualisiere den localStorage, falls die Anfrage dort gespeichert ist
       const savedRequests = localStorage.getItem('vehicleRequests');
       if (savedRequests) {
         let userRequests = JSON.parse(savedRequests);
@@ -310,22 +411,78 @@ function VehicleRequests() {
         if (requestIndex !== -1) {
           userRequests[requestIndex] = {
             ...userRequests[requestIndex],
-            status: 'rejected', // Hier 'rejected' verwenden, da es später wieder konvertiert wird
+            status: 'rejected',
             responseDate: new Date().toISOString(),
             responseNote: note || 'Anfrage abgelehnt'
           };
           
+          // Speichere die Änderungen im localStorage
           localStorage.setItem('vehicleRequests', JSON.stringify(userRequests));
           console.log("Anfrage im localStorage aktualisiert (abgelehnt):", requestId);
         }
       }
+      
+      // Bestimme, ob die Anfrage in den aktuellen oder archivierten Anfragen ist
+      const isInCurrentRequests = requests.some(req => req.id === requestId);
+      const isInArchivedRequests = archivedRequests.some(req => req.id === requestId);
+      
+      // Aktualisiere den entsprechenden State
+      if (isInCurrentRequests) {
+        const updatedRequests = requests.map(req => 
+          req.id === requestId 
+            ? {
+                ...req, 
+                status: 'rejected', 
+                responseDate: new Date().toISOString(),
+                responseNote: note || 'Anfrage abgelehnt'
+              } 
+            : req
+        );
+        
+        setRequests(updatedRequests);
+        
+        // Filterliste aktualisieren, wenn aktuelle Anfragen angezeigt werden
+        if (!showArchive) {
+          if (filter === 'all') {
+            setFilteredRequests(updatedRequests);
+          } else {
+            setFilteredRequests(updatedRequests.filter(request => request.status === filter));
+          }
+        }
+      }
+      
+      if (isInArchivedRequests) {
+        const updatedArchived = archivedRequests.map(req => 
+          req.id === requestId 
+            ? {
+                ...req, 
+                status: 'rejected', 
+                responseDate: new Date().toISOString(),
+                responseNote: note || 'Anfrage abgelehnt'
+              } 
+            : req
+        );
+        
+        setArchivedRequests(updatedArchived);
+        
+        // Filterliste aktualisieren, wenn archivierte Anfragen angezeigt werden
+        if (showArchive) {
+          if (filter === 'all') {
+            setFilteredRequests(updatedArchived);
+          } else {
+            setFilteredRequests(updatedArchived.filter(request => request.status === filter));
+          }
+        }
+      }
+      
+      // Schließen der Detailansicht, falls geöffnet
+      if (selectedRequest?.id === requestId) {
+        setSelectedRequest(null);
+      }
+      
     } catch (err) {
       console.error("Fehler beim Aktualisieren des localStorage:", err);
-    }
-    
-    // Schließen der Detailansicht, falls geöffnet
-    if (selectedRequest?.id === requestId) {
-      setSelectedRequest(null);
+      alert("Es ist ein Fehler beim Speichern der Ablehnung aufgetreten. Bitte versuchen Sie es erneut.");
     }
   };
 
@@ -661,20 +818,23 @@ function VehicleRequests() {
             <div className="px-6 py-4 bg-gray-50 border-t flex justify-end space-x-3">
               <button
                 onClick={() => handleReject(selectedRequest.id, 'Anfrage abgelehnt')}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
               >
+                <XCircleIcon className="h-5 w-5 mr-2" />
                 Ablehnen
               </button>
               <button
                 onClick={() => handleReschedule(selectedRequest.id)}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700"
               >
+                <PencilSquareIcon className="h-5 w-5 mr-2" />
                 Umplanen
               </button>
               <button
                 onClick={() => handleApprove(selectedRequest.id, 'Anfrage genehmigt')}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
               >
+                <CheckCircleIcon className="h-5 w-5 mr-2" />
                 Genehmigen
               </button>
             </div>
@@ -688,40 +848,64 @@ function VehicleRequests() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Fahrzeuganfragen</h2>
+        <h2 className="text-2xl font-bold text-gray-800">
+          {showArchive ? "Archivierte Fahrzeuganfragen" : "Aktuelle Fahrzeuganfragen"}
+        </h2>
         
-        {/* Filter */}
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}
-          >
-            Alle
-          </button>
-          <button 
-            onClick={() => setFilter('pending')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}
-          >
-            Ausstehend
-          </button>
-          <button 
-            onClick={() => setFilter('approved')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
-          >
-            Genehmigt
-          </button>
-          <button 
-            onClick={() => setFilter('rejected')}
-            className={`px-3 py-1 rounded-md text-sm ${filter === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}
-          >
-            Abgelehnt
-          </button>
+        {/* Filter und Archiv-Toggle */}
+        <div className="flex items-center space-x-4">
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1 rounded-md text-sm ${filter === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}
+            >
+              Alle
+            </button>
+            <button 
+              onClick={() => setFilter('pending')}
+              className={`px-3 py-1 rounded-md text-sm ${filter === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}
+            >
+              Ausstehend
+            </button>
+            <button 
+              onClick={() => setFilter('approved')}
+              className={`px-3 py-1 rounded-md text-sm ${filter === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+            >
+              Genehmigt
+            </button>
+            <button 
+              onClick={() => setFilter('rejected')}
+              className={`px-3 py-1 rounded-md text-sm ${filter === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}
+            >
+              Abgelehnt
+            </button>
+          </div>
+          
+          {/* Archiv-Toggle */}
+          <div className="flex items-center space-x-2 border-l pl-4">
+            <button
+              onClick={() => setShowArchive(false)}
+              className={`px-3 py-1 rounded-md text-sm ${!showArchive ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}
+            >
+              Aktuelle
+            </button>
+            <button
+              onClick={() => setShowArchive(true)}
+              className={`px-3 py-1 rounded-md text-sm ${showArchive ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}
+            >
+              Archivierte
+            </button>
+          </div>
         </div>
       </div>
 
       {filteredRequests.length === 0 ? (
         <div className="bg-white shadow-md rounded-lg p-6 text-center">
-          <p className="text-gray-500">Keine Anfragen gefunden.</p>
+          <p className="text-gray-500">
+            {showArchive 
+              ? "Keine archivierten Anfragen gefunden." 
+              : "Keine aktuellen Anfragen gefunden."}
+          </p>
         </div>
       ) : (
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -776,15 +960,17 @@ function VehicleRequests() {
                         <>
                           <button
                             onClick={() => handleReject(request.id, 'Anfrage abgelehnt')}
-                            className="text-red-600 hover:text-red-900"
+                            className="inline-flex items-center px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200"
                           >
+                            <XCircleIcon className="h-4 w-4 mr-1" />
                             Ablehnen
                           </button>
                           
                           <button
                             onClick={() => handleApprove(request.id, 'Anfrage genehmigt')}
-                            className="text-green-600 hover:text-green-900"
+                            className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-md hover:bg-green-200"
                           >
+                            <CheckCircleIcon className="h-4 w-4 mr-1" />
                             Genehmigen
                           </button>
                         </>

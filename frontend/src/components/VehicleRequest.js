@@ -39,10 +39,41 @@ function VehicleRequest() {
 
   // Aktuelles Datum berechnen (für min-Werte in den Datumsfeldern)
   const today = new Date().toISOString().split('T')[0];
+  
+  // Aktuelle Uhrzeit berechnen (für Zeitvalidierung)
+  const now = new Date();
+  const currentHour = now.getHours().toString().padStart(2, '0');
+  const currentMinute = now.getMinutes().toString().padStart(2, '0');
+  const currentTime = `${currentHour}:${currentMinute}`;
 
   // Handler für Änderungen an Formularfeldern
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Spezielle Validierung für Datumsfelder
+    if (name === 'startDate') {
+      // Wenn Startdatum geändert wird, stelle sicher, dass es nicht in der Vergangenheit liegt
+      const selectedDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Setze auf Beginn des Tages für korrekten Vergleich
+      
+      if (selectedDate < today) {
+        alert('Termine in der Vergangenheit können nicht gebucht werden.');
+        return; // Verhindere die Änderung
+      }
+      
+      // Setze auch Enddatum, wenn es leer ist oder vor dem neuen Startdatum liegt
+      if (!formData.endDate || new Date(formData.endDate) < selectedDate) {
+        setFormData({
+          ...formData,
+          [name]: value,
+          endDate: value // Setze Enddatum auf gleiches Datum
+        });
+        return;
+      }
+    }
+    
+    // Aktualisiere State
     setFormData({
       ...formData,
       [name]: value
@@ -74,11 +105,33 @@ function VehicleRequest() {
     // Start- und Endzeit-Objekte erstellen
     const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`);
     const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
+    const now = new Date();
 
     // Validierung: Überprüfen, ob Endzeit nach Startzeit liegt
     if (endDateTime <= startDateTime) {
       setError('Die Endzeit muss nach der Startzeit liegen.');
       return;
+    }
+    
+    // Verstärkte Validierung: Überprüfen, ob Startzeit in der Vergangenheit liegt
+    if (startDateTime < now) {
+      setError('Der Termin kann nicht in der Vergangenheit liegen. Bitte wählen Sie ein Datum in der Zukunft.');
+      return;
+    }
+    
+    // Weitere Validierung für das heutige Datum mit genauer Stundenvalidierung
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const startDateOnly = new Date(formData.startDate);
+    startDateOnly.setHours(0, 0, 0, 0);
+    
+    if (startDateOnly.getTime() === todayDate.getTime()) {
+      // Bei Buchungen am aktuellen Tag: Prüfen, ob die Startzeit in der Zukunft liegt
+      const [startHour, startMinute] = formData.startTime.split(':').map(Number);
+      if (startHour < now.getHours() || (startHour === now.getHours() && startMinute < now.getMinutes())) {
+        setError('Die Startzeit muss in der Zukunft liegen.');
+        return;
+      }
     }
 
     // Fehler zurücksetzen und Ladestatus setzen
@@ -248,8 +301,10 @@ function VehicleRequest() {
                 min={today}
                 value={formData.startDate}
                 onChange={handleChange}
+                required
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
+              <small className="text-gray-500">Termine in der Vergangenheit können nicht gebucht werden.</small>
             </div>
             <div>
               <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
@@ -262,6 +317,7 @@ function VehicleRequest() {
                 name="startTime"
                 value={formData.startTime}
                 onChange={handleChange}
+                required
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

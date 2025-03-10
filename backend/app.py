@@ -5,17 +5,61 @@ from models import db, Vehicle, User, Booking, MaintenanceRecord, AuditLog, Vehi
 import os
 import requests
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from sqlalchemy import text  # Füge diesen Import am Anfang der Datei hinzu
+import jwt  # Für JWT-Token (JSON Web Token)
+import bcrypt  # Für Passwort-Hashing
+from functools import wraps  # Für Dekoratoren
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Secret Key für JWT
+app.config['JWT_SECRET_KEY'] = 'geheim-und-sicher-schluessel'  # In Produktion würde man einen sicheren Schlüssel verwenden
 
 # Zurück zur einfachen CORS-Konfiguration
 CORS(app)
 
 db.init_app(app)
+
+# Funktion zum Erstellen der vordefinierten Benutzer
+def create_default_users():
+    with app.app_context():
+        # Prüfen, ob der Admin-Benutzer bereits existiert
+        admin_user = User.query.filter_by(email='admin@pirelli.com').first()
+        if not admin_user:
+            # Admin-Benutzer erstellen
+            admin = User(
+                name='Administrator',
+                email='admin@pirelli.com',
+                rolle='Admin',
+                department='IT-Administration'
+            )
+            # Passwort mit der set_password-Methode setzen (verwendet password_hash)
+            admin.set_password('Admin')
+            db.session.add(admin)
+            print("Admin-Benutzer erstellt")
+        
+        # Prüfen, ob der normale Benutzer bereits existiert
+        normal_user = User.query.filter_by(email='user@pirelli.com').first()
+        if not normal_user:
+            # Normalen Benutzer erstellen
+            user = User(
+                name='Normaler Benutzer',
+                email='user@pirelli.com',
+                rolle='Mitarbeiter',
+                department='Vertrieb'
+            )
+            # Passwort mit der set_password-Methode setzen (verwendet password_hash)
+            user.set_password('user123')
+            db.session.add(user)
+            print("Normaler Benutzer erstellt")
+        
+        # Änderungen speichern, falls Benutzer erstellt wurden
+        if not admin_user or not normal_user:
+            db.session.commit()
+            print("Standardbenutzer wurden in der Datenbank gespeichert")
 
 # Am Anfang der Datei nach den Imports
 UPLOAD_FOLDER = 'uploads'
@@ -1190,41 +1234,163 @@ def ping():
         "time": datetime.now().strftime("%H:%M:%S")
     })
 
+# ----- Benutzer-Authentifizierung -----
+
+# Hilfsfunktion zum Generieren eines JWT-Tokens
+def generate_token(user_id):
+    try:
+        payload = {
+            'exp': datetime.utcnow() + timedelta(days=1),
+            'iat': datetime.utcnow(),
+            'sub': user_id
+        }
+        return jwt.encode(
+            payload,
+            app.config.get('JWT_SECRET_KEY'),
+            algorithm='HS256'
+        )
+    except Exception as e:
+        return str(e)
+
+# Dekorator zur Token-Validierung
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization'].split(" ")[1]
+        
+        if not token:
+            return jsonify({'message': 'Token ist erforderlich!'}), 401
+        
+        try:
+            data = jwt.decode(token, app.config.get('JWT_SECRET_KEY'), algorithms=["HS256"])
+            current_user = User.query.filter_by(id=data['sub']).first()
+            if not current_user:
+                return jsonify({'message': 'Token ist ungültig!'}), 401
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token ist abgelaufen!'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Token ist ungültig!'}), 401
+        
+        return f(current_user, *args, **kwargs)
+    
+    return decorated
+
+# Registrierungsendpunkt
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    
+    # Überprüfe, ob erforderliche Felder vorhanden sind
+    if not data or not data.get('email') or not data.get('password') or not data.get('name'):
+        return jsonify({'success': False, 'message': 'Unvollständige Daten'}), 400
+    
+    # Überprüfe, ob Benutzer bereits existiert
+    existing_user = User.query.filter_by(email=data['email']).first()
+    if existing_user:
+        return jsonify({'success': False, 'message': 'Benutzer existiert bereits!'}), 409
+    
+    # Neuen Benutzer erstellen
+    new_user = User(
+        name=data['name'],
+        email=data['email'],
+        rolle='Mitarbeiter',  # Standard-Rolle
+        department=data.get('department', 'Allgemein')
+    )
+    
+    # Passwort mit der set_password-Methode setzen
+    new_user.set_password(data['password'])
+    
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+        
+        # Token generieren
+        token = generate_token(new_user.id)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Benutzer erfolgreich registriert',
+            'userId': new_user.id,
+            'token': token,
+            'name': new_user.name,
+            'department': new_user.department
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# Login-Endpunkt
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    
+    # Überprüfe, ob erforderliche Felder vorhanden sind
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({'success': False, 'message': 'Unvollständige Daten'}), 400
+    
+    # Benutzer in der Datenbank suchen
+    user = User.query.filter_by(email=data['email']).first()
+    
+    # Wenn Benutzer nicht gefunden oder Passwort falsch
+    if not user or not user.check_password(data['password']):
+        return jsonify({'success': False, 'message': 'Ungültige Anmeldedaten'}), 401
+    
+    # Token generieren
+    token = generate_token(user.id)
+    
+    # Ist Admin?
+    is_admin = user.rolle in ['Admin', 'Administrator']
+    
+    return jsonify({
+        'success': True,
+        'userId': user.id,
+        'name': user.name,
+        'token': token,
+        'isAdmin': is_admin,
+        'department': user.department
+    }), 200
+
+# Geschützter Endpunkt (Beispiel)
+@app.route('/api/profile', methods=['GET'])
+@token_required
+def get_profile(current_user):
+    return jsonify({
+        'id': current_user.id,
+        'name': current_user.name,
+        'email': current_user.email,
+        'rolle': current_user.rolle,
+        'department': current_user.department
+    })
+
+# Passwort zurücksetzen (Beispiel - in Produktion würde man E-Mail-Verifizierung verwenden)
+@app.route('/api/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json()
+    
+    # Überprüfe, ob erforderliche Felder vorhanden sind
+    if not data or not data.get('email'):
+        return jsonify({'success': False, 'message': 'E-Mail-Adresse erforderlich'}), 400
+    
+    # Benutzer in der Datenbank suchen
+    user = User.query.filter_by(email=data['email']).first()
+    
+    if not user:
+        # Wir geben aus Sicherheitsgründen die gleiche Nachricht zurück, auch wenn der Benutzer nicht existiert
+        return jsonify({'success': True, 'message': 'Wenn Ihre E-Mail-Adresse in unserem System ist, erhalten Sie eine E-Mail mit Anweisungen zum Zurücksetzen Ihres Passworts.'}), 200
+    
+    # In einer echten Anwendung würde hier eine E-Mail mit einem Zurücksetzungs-Link gesendet werden
+    # Für die Demo geben wir einfach eine Erfolgsmeldung zurück
+    
+    return jsonify({'success': True, 'message': 'Wenn Ihre E-Mail-Adresse in unserem System ist, erhalten Sie eine E-Mail mit Anweisungen zum Zurücksetzen Ihres Passworts.'}), 200
+
 if __name__ == '__main__':
     with app.app_context():
-        try:
-            # Teste zuerst die Verbindung mit text()
-            db.session.execute(text('SELECT 1'))
-            print("Datenbankverbindung erfolgreich!")
-            
-            # Erstelle Tabellen
-            db.create_all()
-            print("Tabellen wurden erstellt/aktualisiert")
-            
-            # Prüfe ob Beispieldaten nötig sind
-            vehicle_count = db.session.query(Vehicle).count()
-            if vehicle_count == 0:
-                print("Erstelle Beispieldaten...")
-                # Füge ein Testfahrzeug hinzu
-                test_vehicle = Vehicle(
-                    modell='VW Golf',
-                    kennzeichen='B-AA 1234',
-                    bild='https://example.com/golf.jpg',
-                    status='verfügbar'
-                )
-                db.session.add(test_vehicle)
-                db.session.commit()
-                print("Beispielfahrzeug wurde erstellt")
-            else:
-                print(f"Datenbank enthält bereits {vehicle_count} Fahrzeuge")
-                
-        except Exception as e:
-            print(f"Fehler beim Datenbankzugriff: {str(e)}")
-            db.session.rollback()
-        finally:
-            db.session.close()
-
-    app.run(host='0.0.0.0', port=5000, debug=True) 
+        db.create_all()  # Stelle sicher, dass alle Tabellen existieren
+        create_default_users()  # Erstelle die Standardbenutzer
+    app.run(debug=True, host='0.0.0.0') 
 
 
 

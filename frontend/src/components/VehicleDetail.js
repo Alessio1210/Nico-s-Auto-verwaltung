@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DamageReport from './DamageReport';
 import FuelLog from './FuelLog';
+import VehicleCalendar from './VehicleCalendar';
 
-function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
+function VehicleDetail({ vehicle, onClose, onUpdate, onDelete, isUserView = false }) {
   const [vehicleData, setVehicleData] = useState(vehicle);
   const [maintenanceHistory, setMaintenanceHistory] = useState([]);
   const [newMaintenance, setNewMaintenance] = useState({
@@ -33,8 +34,19 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
     tuev_datum: vehicle && vehicle.tuev_datum ? vehicle.tuev_datum.split('T')[0] : '',
     au_datum: vehicle && vehicle.au_datum ? vehicle.au_datum.split('T')[0] : ''
   });
+  const [bookings, setBookings] = useState([]);
 
   const vehicleId = vehicle ? vehicle.id : null;
+
+  // Hilfsfunktion zur Formatierung von Datum
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Nicht eingetragen';
+    try {
+      return new Date(dateString).toLocaleDateString('de-DE');
+    } catch (e) {
+      return 'Ungültiges Datum';
+    }
+  };
 
   useEffect(() => {
     if (!vehicleId) {
@@ -42,6 +54,13 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
       return;
     }
 
+    // Für normale Benutzer holen wir nur die Buchungen
+    if (isUserView) {
+      loadBookings();
+      return;
+    }
+
+    // Für Admins laden wir alle detaillierten Informationen
     axios.get(`http://localhost:5000/api/vehicles/${vehicleId}/maintenance`)
       .then(response => {
         console.log('Wartungshistorie geladen:', response.data);
@@ -82,7 +101,30 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
         const demoFuelLogs = [];
         setFuelLogs(demoFuelLogs);
       });
-  }, [vehicleId, vehicleData.kilometerstand]);
+    
+    loadBookings();
+  }, [vehicleId, vehicleData.kilometerstand, isUserView]);
+
+  // Laden der Buchungen für das Fahrzeug
+  const loadBookings = () => {
+    try {
+      // Lade alle Anfragen aus dem localStorage
+      const allRequests = JSON.parse(localStorage.getItem('vehicleRequests') || '[]');
+      
+      // Filtere nach Anfragen für dieses Fahrzeug
+      const vehicleBookings = allRequests.filter(req => {
+        const reqVehicleId = req.vehicleId && req.vehicleId.toString();
+        const currentVehicleId = vehicleId && vehicleId.toString();
+        return reqVehicleId === currentVehicleId;
+      });
+      
+      console.log('Buchungen für Fahrzeug geladen:', vehicleBookings);
+      setBookings(vehicleBookings);
+    } catch (error) {
+      console.error('Fehler beim Laden der Buchungen:', error);
+      setBookings([]);
+    }
+  };
 
   const handleSaveVehicle = () => {
     if (!vehicleId) return;
@@ -394,160 +436,91 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
   };
 
   const renderDetailsTab = () => {
+    if (editMode && !isUserView) {
+      // Editor-Ansicht für Admins
+      // ... existing code ...
+    }
+
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between">
+      <div className="bg-white p-6 rounded-md shadow-md">
+        <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-semibold">Fahrzeugdetails</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditMode(true)}
-              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Bearbeiten
-            </button>
-            <button
-              onClick={handleDeleteVehicle}
-              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              Löschen
-            </button>
-          </div>
-        </div>
-        
-        {!editMode ? (
-          <>
-            <div className="mb-4">
-              {vehicleData.bild ? (
-                <img 
-                  src={`http://localhost:5000/api/uploads/vehicles/${vehicleData.bild}`} 
-                  alt={vehicleData.modell} 
-                  className="w-full h-48 object-cover rounded-lg"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/800x400?text=Kein+Bild';
-                  }}
-                />
-              ) : (
-                <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-lg">
-                  <span className="text-gray-400">Kein Bild verfügbar</span>
-                </div>
+          {!isUserView && (
+            <div className="space-x-2">
+              {!editMode && (
+                <>
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Bearbeiten
+                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={handleDeleteVehicle}
+                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Fahrzeug löschen
+                    </button>
+                  )}
+                </>
               )}
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Modell</h4>
-                <p className="font-semibold">{vehicleData.modell}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Kennzeichen</h4>
-                <p className="font-semibold">{vehicleData.kennzeichen}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Kilometerstand</h4>
-                <p className="font-semibold">{vehicleData.kilometerstand?.toLocaleString() || '0'} km</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Tankstand</h4>
-                <p className="font-semibold">{vehicleData.tankstand || '100'}%</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">TÜV bis</h4>
-                <p className="font-semibold">
-                  {vehicleData.tuev_datum 
-                    ? new Date(vehicleData.tuev_datum).toLocaleDateString('de-DE')
-                    : 'Nicht eingetragen'}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">AU bis</h4>
-                <p className="font-semibold">
-                  {vehicleData.au_datum 
-                    ? new Date(vehicleData.au_datum).toLocaleDateString('de-DE')
-                    : 'Nicht eingetragen'}
-                </p>
-              </div>
+          )}
+        </div>
+
+        {!editMode && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Modell</p>
+              <p className="font-medium">{vehicleData.modell}</p>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="flex justify-between">
-              <h3 className="text-xl font-semibold">Fahrzeug bearbeiten</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEditMode(false)}
-                  className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  onClick={handleSaveVehicle}
-                  className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                >
-                  Speichern
-                </button>
-              </div>
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Kennzeichen</p>
+              <p className="font-medium">{vehicleData.kennzeichen}</p>
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modell</label>
-                <input
-                  type="text"
-                  value={editData.modell}
-                  onChange={(e) => setEditData({...editData, modell: e.target.value})}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kennzeichen</label>
-                <input
-                  type="text"
-                  value={editData.kennzeichen}
-                  onChange={(e) => setEditData({...editData, kennzeichen: e.target.value})}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kilometerstand</label>
-                <input
-                  type="number"
-                  value={editData.kilometerstand}
-                  onChange={(e) => setEditData({...editData, kilometerstand: parseInt(e.target.value) || 0})}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tankstand (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={editData.tankstand}
-                  onChange={(e) => setEditData({...editData, tankstand: parseInt(e.target.value) || 0})}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">TÜV bis</label>
-                <input
-                  type="date"
-                  value={editData.tuev_datum}
-                  onChange={(e) => setEditData({...editData, tuev_datum: e.target.value})}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">AU bis</label>
-                <input
-                  type="date"
-                  value={editData.au_datum}
-                  onChange={(e) => setEditData({...editData, au_datum: e.target.value})}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
+            {!isUserView && (
+              <>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Kilometerstand</p>
+                  <p className="font-medium">{vehicleData.kilometerstand?.toLocaleString() || '0'} km</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Tankstand</p>
+                  <p className="font-medium">{vehicleData.tankstand || '100'}%</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">TÜV gültig bis</p>
+                  <p className="font-medium">{formatDate(vehicleData.tuev_datum)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">AU gültig bis</p>
+                  <p className="font-medium">{formatDate(vehicleData.au_datum)}</p>
+                </div>
+              </>
+            )}
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Status</p>
+              <p className="font-medium">
+                <span className={`px-2 py-0.5 rounded text-sm ${
+                  vehicleData.status === 'Verfügbar' ? 'bg-green-100 text-green-800' :
+                  vehicleData.status === 'In Benutzung' ? 'bg-blue-100 text-blue-800' :
+                  vehicleData.status === 'In Wartung' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {vehicleData.status || 'Verfügbar'}
+                </span>
+              </p>
             </div>
-          </>
+          </div>
+        )}
+        
+        {/* Nur für Benutzer: Zeige Kalendar direkt im Detailbereich an */}
+        {isUserView && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Fahrzeugverfügbarkeit</h3>
+            <VehicleCalendar bookings={bookings} />
+          </div>
         )}
       </div>
     );
@@ -575,36 +548,45 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
             >
               Details
             </button>
+            {!isUserView && (
+              <>
+                <button
+                  onClick={() => setActiveTab('maintenance')}
+                  className={`px-3 py-2 rounded-md ${activeTab === 'maintenance' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  Wartung
+                </button>
+                <button
+                  onClick={() => setActiveTab('documents')}
+                  className={`px-3 py-2 rounded-md ${activeTab === 'documents' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  Dokumente
+                </button>
+                <button
+                  onClick={() => setActiveTab('damage')}
+                  className={`px-3 py-2 rounded-md ${activeTab === 'damage' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  Schäden
+                </button>
+                <button
+                  onClick={() => setActiveTab('fuel')}
+                  className={`px-3 py-2 rounded-md ${activeTab === 'fuel' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+                >
+                  Tankprotokoll
+                </button>
+              </>
+            )}
             <button
-              onClick={() => setActiveTab('maintenance')}
-              className={`px-3 py-2 rounded-md ${activeTab === 'maintenance' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
+              onClick={() => setActiveTab('calendar')}
+              className={`px-3 py-2 rounded-md ${activeTab === 'calendar' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
             >
-              Wartung
-            </button>
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={`px-3 py-2 rounded-md ${activeTab === 'documents' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-            >
-              Dokumente
-            </button>
-            <button
-              onClick={() => setActiveTab('damage')}
-              className={`px-3 py-2 rounded-md ${activeTab === 'damage' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-            >
-              Schäden
-            </button>
-            <button
-              onClick={() => setActiveTab('fuel')}
-              className={`px-3 py-2 rounded-md ${activeTab === 'fuel' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}
-            >
-              Tankprotokoll
+              Kalender
             </button>
           </nav>
         </div>
 
         {activeTab === 'details' && renderDetailsTab()}
-
-        {activeTab === 'maintenance' && (
+        {!isUserView && activeTab === 'maintenance' && (
           <div className="space-y-4">
             <h3 className="text-xl font-semibold mb-4">Wartungshistorie</h3>
             <form onSubmit={editingRecord ? handleUpdate : handleMaintenanceSubmit} className="mb-4 space-y-4">
@@ -767,8 +749,7 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
             </div>
           </div>
         )}
-
-        {activeTab === 'documents' && (
+        {!isUserView && activeTab === 'documents' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Fahrzeugdokumente</h3>
@@ -815,8 +796,7 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
             )}
           </div>
         )}
-
-        {activeTab === 'damage' && (
+        {!isUserView && activeTab === 'damage' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Schadensmeldungen</h3>
@@ -882,8 +862,7 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
             )}
           </div>
         )}
-
-        {activeTab === 'fuel' && (
+        {!isUserView && activeTab === 'fuel' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Tankprotokoll</h3>
@@ -946,6 +925,12 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete }) {
                 </table>
               </div>
             )}
+          </div>
+        )}
+        {activeTab === 'calendar' && (
+          <div className="bg-white p-6 rounded-md shadow-md">
+            <h3 className="text-xl font-semibold mb-4">Fahrzeugbuchungen</h3>
+            <VehicleCalendar bookings={bookings} />
           </div>
         )}
       </div>

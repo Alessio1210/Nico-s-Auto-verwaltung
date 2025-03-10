@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import VehicleDetail from './VehicleDetail';
 import BookingCalendar from './BookingCalendar';
+import BookingForm from './BookingForm';
 
 function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdateVehicle, onDeleteVehicle }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -101,13 +102,10 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
 
   // Vorschau für das Bild anzeigen
   const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setNewVehicle({ ...newVehicle, bild: file });
-    }
+    setNewVehicle({...newVehicle, bild: e.target.files[0]});
   };
 
-  // Fahrzeug zum Anzeigen auswählen
+  // Fahrzeug für Detailansicht auswählen
   const handleSelectVehicle = (vehicle) => {
     setSelectedVehicle(vehicle);
     setShowVehicleDetail(true);
@@ -170,76 +168,6 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
         console.log("Buchungskonflikte gefunden:", conflicts);
       }
     }
-  };
-
-  // Benutzeranfrage bestätigen
-  const handleConfirmRequest = () => {
-    if (!requestDetails.startDate || !requestDetails.endDate || !requestDetails.purpose) {
-      alert('Bitte füllen Sie alle Felder aus.');
-      return;
-    }
-    
-    // Prüfen auf Konflikte
-    const { isAvailable, conflicts } = checkVehicleAvailability(
-      vehicleToRequest.id, 
-      requestDetails.startDate, 
-      requestDetails.endDate
-    );
-    
-    if (!isAvailable) {
-      const conflictDates = conflicts.map(c => 
-        `${new Date(c.startDate).toLocaleDateString()} - ${new Date(c.endDate).toLocaleDateString()}`
-      ).join(', ');
-      
-      const continueAnyway = window.confirm(
-        `Das Fahrzeug ist in diesem Zeitraum bereits gebucht:\n${conflictDates}\n\nMöchten Sie die Anfrage trotzdem senden?`
-      );
-      
-      if (!continueAnyway) return;
-    }
-
-    // Anfrage im Local Storage speichern
-    const existingRequests = JSON.parse(localStorage.getItem('vehicleRequests') || '[]');
-    const newRequest = {
-      id: Date.now().toString(),
-      vehicleId: vehicleToRequest.id,
-      vehicleModel: vehicleToRequest.modell,
-      licensePlate: vehicleToRequest.kennzeichen,
-      startDate: requestDetails.startDate,
-      endDate: requestDetails.endDate,
-      startDateTime: `${requestDetails.startDate}T08:00:00`,
-      endDateTime: `${requestDetails.endDate}T17:00:00`,
-      purpose: requestDetails.purpose,
-      destination: 'Nicht angegeben',
-      passengers: 1,
-      notes: '',
-      status: 'pending',
-      timestamp: new Date().toISOString(),
-      requestDate: new Date().toISOString(),
-      userId: '1', // In einer realen Anwendung würde hier die ID des angemeldeten Benutzers stehen
-      userName: 'Max Mustermann', // In einer realen Anwendung würde hier der Name des angemeldeten Benutzers stehen
-      userDepartment: 'Entwicklung', // In einer realen Anwendung würde hier die Abteilung des Benutzers stehen
-      responseDate: null,
-      responseNote: null
-    };
-
-    console.log("Neue Anfrage wird gespeichert:", newRequest);
-    existingRequests.push(newRequest);
-    localStorage.setItem('vehicleRequests', JSON.stringify(existingRequests));
-    console.log("Anfragen im localStorage nach Speichern:", localStorage.getItem('vehicleRequests'));
-
-    // Dialog schließen und Formular zurücksetzen
-    setShowConfirmation(false);
-    setVehicleToRequest(null);
-    setRequestDetails({
-      startDate: '',
-      endDate: '',
-      purpose: '',
-      userName: '',
-      userContact: ''
-    });
-
-    alert('Fahrzeuganfrage wurde erfolgreich gesendet!');
   };
 
   // Funktion zum direkten Buchen als Admin
@@ -442,14 +370,14 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredVehicles.map(vehicle => (
             <div
-              key={vehicle.id}
+              key={vehicle.id} 
               className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300"
             >
               <div className="relative h-48 bg-gray-200">
                 {vehicle.bild ? (
-                  <img
+                  <img 
                     src={vehicle.bild}
-                    alt={vehicle.modell}
+                    alt={vehicle.modell} 
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       console.log("Bild-Fehler für Fahrzeug:", vehicle.modell, "- Bildpfad:", vehicle.bild);
@@ -505,48 +433,54 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
                 
                 <div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-gray-500">Kilometerstand</p>
-                      <p className="font-medium">{vehicle.kilometerstand?.toLocaleString() || '0'} km</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Tankstand</p>
-                      <p className="font-medium">{vehicle.tankstand || '100'}%</p>
-                    </div>
+                    {!isUserView && (
+                      <>
+                        <div>
+                          <p className="text-gray-500">Kilometerstand</p>
+                          <p className="font-medium">{vehicle.kilometerstand?.toLocaleString() || '0'} km</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Tankstand</p>
+                          <p className="font-medium">{vehicle.tankstand || '100'}%</p>
+                        </div>
+                      </>
+                    )}
                   </div>
+                  
+                  {expanded[vehicle.id] && !isUserView && (
+                    <div className="mt-4 space-y-2 border-t pt-4">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-gray-500">TÜV bis</p>
+                          <p className="font-medium">{formatDate(vehicle.tuev_datum)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">AU bis</p>
+                          <p className="font-medium">{formatDate(vehicle.au_datum)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
-                {expanded[vehicle.id] && (
-                  <div className="mt-4 space-y-2 border-t pt-4">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-gray-500">TÜV bis</p>
-                        <p className="font-medium">{formatDate(vehicle.tuev_datum)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">AU bis</p>
-                        <p className="font-medium">{formatDate(vehicle.au_datum)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
                 <div className="flex justify-between mt-4">
-                  <button
-                    onClick={() => handleToggleExpand(vehicle.id)}
-                    className="text-blue-500 hover:text-blue-700 flex items-center"
-                  >
-                    {expanded[vehicle.id] ? 'Weniger anzeigen' : 'Mehr anzeigen'}
-                    {expanded[vehicle.id] ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
+                  {!isUserView && (
+                    <button
+                      onClick={() => handleToggleExpand(vehicle.id)}
+                      className="text-blue-500 hover:text-blue-700 flex items-center"
+                    >
+                      {expanded[vehicle.id] ? 'Weniger anzeigen' : 'Mehr anzeigen'}
+                      {expanded[vehicle.id] ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
                   <div className="space-x-2">
                     {isUserView ? (
                       <button
@@ -597,90 +531,82 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
 
       {/* Fahrzeugdetail-Modal */}
       {showVehicleDetail && selectedVehicle && (
-        <VehicleDetail 
-          vehicle={selectedVehicle} 
-          onClose={() => setShowVehicleDetail(false)} 
+        <VehicleDetail
+          vehicle={selectedVehicle}
+          onClose={() => setShowVehicleDetail(false)}
           onUpdate={handleVehicleUpdate}
           onDelete={handleVehicleDelete}
+          isUserView={isUserView}
         />
       )}
 
       {/* Anfrage-Bestätigungsdialog */}
       {showConfirmation && vehicleToRequest && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <h3 className="text-lg font-bold mb-4">Fahrzeug anfragen</h3>
-            <p className="mb-4">Sie möchten das Fahrzeug <strong>{vehicleToRequest.modell}</strong> ({vehicleToRequest.kennzeichen}) anfragen.</p>
+          <div className="relative top-20 mx-auto border shadow-lg rounded-md bg-white">
+            <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+              <h3 className="text-lg font-bold">Fahrzeug anfragen</h3>
+              <button 
+                onClick={() => {
+                  setShowConfirmation(false);
+                  setVehicleToRequest(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Startdatum</label>
-                <input
-                  type="date"
-                  className="w-full p-2 border rounded"
-                  value={requestDetails.startDate}
-                  onChange={(e) => handleDateChange('startDate', e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Enddatum</label>
-                <input
-                  type="date"
-                  className="w-full p-2 border rounded"
-                  value={requestDetails.endDate}
-                  onChange={(e) => handleDateChange('endDate', e.target.value)}
-                  required
-                />
-              </div>
-              
-              {bookingConflicts.length > 0 && (
-                <div className="p-3 bg-yellow-100 text-yellow-800 rounded border border-yellow-300">
-                  <p className="font-semibold mb-1">Achtung: Überschneidungen mit bestehenden Buchungen:</p>
-                  <ul className="list-disc list-inside text-sm">
-                    {bookingConflicts.map((conflict, idx) => (
-                      <li key={idx}>
-                        {new Date(conflict.startDate).toLocaleDateString()} - {new Date(conflict.endDate).toLocaleDateString()}
-                        {conflict.userName && ` (${conflict.userName})`}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-sm mt-1">Sie können trotzdem eine Anfrage stellen.</p>
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Verwendungszweck</label>
-                <textarea
-                  className="w-full p-2 border rounded"
-                  rows="3"
-                  value={requestDetails.purpose}
-                  onChange={(e) => handleDateChange('purpose', e.target.value)}
-                  required
-                ></textarea>
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowConfirmation(false);
-                    setVehicleToRequest(null);
-                  }}
-                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmRequest}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Anfrage senden
-                </button>
-              </div>
-            </form>
+            <div className="p-6">
+              <BookingForm 
+                vehicle={vehicleToRequest}
+                checkAvailability={checkVehicleAvailability}
+                onSubmit={(bookingData) => {
+                  console.log("Neue Fahrzeuganfrage:", bookingData);
+                  
+                  // Anfrage im Local Storage speichern
+                  const existingRequests = JSON.parse(localStorage.getItem('vehicleRequests') || '[]');
+                  const newRequest = {
+                    id: Date.now().toString(),
+                    vehicleId: vehicleToRequest.id,
+                    vehicleModel: vehicleToRequest.modell,
+                    licensePlate: vehicleToRequest.kennzeichen,
+                    startDate: bookingData.pickupDate,
+                    endDate: bookingData.returnDate,
+                    startDateTime: bookingData.startDateTime,
+                    endDateTime: bookingData.endDateTime,
+                    purpose: bookingData.purpose,
+                    destination: bookingData.destination,
+                    passengers: bookingData.passengers,
+                    notes: bookingData.notes || '',
+                    status: 'pending',
+                    timestamp: new Date().toISOString(),
+                    requestDate: new Date().toISOString(),
+                    userId: '1', // In einer realen Anwendung würde hier die ID des angemeldeten Benutzers stehen
+                    userName: 'Max Mustermann', // In einer realen Anwendung würde hier der Name des angemeldeten Benutzers stehen
+                    userDepartment: 'Entwicklung', // In einer realen Anwendung würde hier die Abteilung des Benutzers stehen
+                    responseDate: null,
+                    responseNote: null
+                  };
+                  
+                  existingRequests.push(newRequest);
+                  localStorage.setItem('vehicleRequests', JSON.stringify(existingRequests));
+                  console.log("Anfragen im localStorage nach Speichern:", localStorage.getItem('vehicleRequests'));
+                  
+                  // Dialog schließen
+                  setShowConfirmation(false);
+                  setVehicleToRequest(null);
+                  
+                  alert('Fahrzeuganfrage wurde erfolgreich gesendet!');
+                }}
+                onCancel={() => {
+                  setShowConfirmation(false);
+                  setVehicleToRequest(null);
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

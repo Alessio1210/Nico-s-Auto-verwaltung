@@ -69,7 +69,7 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     rolle = db.Column(db.String(50), nullable=False)  # z. B. "Mitarbeiter" oder "Fuhrparkmitarbeiter"
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(128))  # Für werkzeug-gehashte Passwörter
     department = db.Column(db.String(100))  # Neue Spalte für Abteilung
     building = db.Column(db.String(100))    # Neue Spalte für Gebäude
 

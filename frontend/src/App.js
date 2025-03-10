@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import LoginPage from './components/LoginPage';
 import VehicleList from './components/VehicleList';
 import GlobalDashboard from './components/GlobalDashboard';
 import StatisticsDashboard from './components/StatisticsDashboard';
@@ -49,10 +51,11 @@ const API_ENDPOINTS = {
 };
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true); // Für Demo-Zwecke standardmäßig angemeldet
-  const [isAdmin, setIsAdmin] = useState(true); // Für Demo-Zwecke standardmäßig Admin
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeView, setActiveView] = useState('vehicles'); // Standard: Fahrzeugansicht anzeigen
+  const [activeView, setActiveView] = useState('vehicles');
   
   // Zentraler Fahrzeugzustand
   const [vehicles, setVehicles] = useState([]);
@@ -66,10 +69,23 @@ function App() {
     ITEM_PREFIX: null
   });
   
-  // Laden der Fahrzeuge beim Start der Anwendung
+  // Überprüfe, ob ein Benutzer bereits angemeldet ist
   useEffect(() => {
-    loadVehicles();
+    const loggedInUser = localStorage.getItem('user');
+    if (loggedInUser) {
+      const userData = JSON.parse(loggedInUser);
+      setUser(userData);
+      setIsLoggedIn(true);
+      setIsAdmin(userData.isAdmin || false);
+    }
   }, []);
+  
+  // Laden der Fahrzeuge beim Start der Anwendung (nur wenn angemeldet)
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadVehicles();
+    }
+  }, [isLoggedIn]);
 
   // Debug-Ausgabe der erfolgreichen Endpunkte
   useEffect(() => {
@@ -348,18 +364,41 @@ function App() {
     alert("Fehler beim Löschen des Fahrzeugs: Keiner der Endpunkte funktioniert");
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('isLoggedIn');
+  // Benutzeranmeldung
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setIsLoggedIn(true);
+    setIsAdmin(userData.isAdmin || false);
+    
+    // Setze die aktive Ansicht basierend auf der Benutzerrolle
+    if (userData.isAdmin) {
+      setActiveView('dashboard');
+    } else {
+      setActiveView('vehicles');
+    }
   };
-
-  const toggleAdminMode = () => {
-    setIsAdmin(!isAdmin);
+  
+  // Benutzerregistrierung
+  const handleRegister = (userData) => {
+    setUser(userData);
+    setIsLoggedIn(true);
+    setIsAdmin(userData.isAdmin || false);
+    
+    // Neue Benutzer sind standardmäßig keine Admins
+    setActiveView('vehicles');
+  };
+  
+  // Benutzerabmeldung
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    setIsLoggedIn(false);
+    setIsAdmin(false);
   };
 
   // Renderlogik basierend auf der aktiven Ansicht
   const renderContent = () => {
-    if (!vehiclesLoaded) {
+    if (!vehiclesLoaded && isLoggedIn) {
       return (
         <div className="w-full flex flex-col items-center justify-center my-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
@@ -368,7 +407,7 @@ function App() {
       );
     }
 
-    if (loadingError) {
+    if (loadingError && isLoggedIn) {
       return (
         <div className="w-full flex flex-col items-center justify-center my-12 text-red-500">
           <p className="mb-2 font-semibold">{loadingError}</p>
@@ -413,34 +452,38 @@ function App() {
     }
   };
 
+  // Wenn der Benutzer nicht angemeldet ist, zeige die Login-/Registrierungsseite an
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} onRegister={handleRegister} />;
+  }
+
+  // Wenn angemeldet, zeige die Hauptanwendung an
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
-        isAdmin={isAdmin}
-        onLogout={handleLogout}
-        activeView={activeView}
-        setActiveView={setActiveView}
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Header */}
+      <Header 
+        isAdmin={isAdmin} 
+        onLogout={handleLogout} 
+        user={user}
       />
       
-      <div className="flex-1 overflow-auto">
-        <div className="p-4 md:p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Fahrzeugverwaltung</h1>
-            
-            <div className="flex items-center">
-              <span className="mr-2 text-sm">{isAdmin ? 'Admin-Modus' : 'Benutzer-Modus'}</span>
-              <button 
-                onClick={toggleAdminMode}
-                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                {isAdmin ? 'Zu Benutzeransicht wechseln' : 'Zu Admin-Ansicht wechseln'}
-              </button>
-            </div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
+          isAdmin={isAdmin}
+          onLogout={handleLogout}
+          activeView={activeView}
+          setActiveView={setActiveView}
+          user={user}
+        />
+        
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-4 md:p-6">
+            {renderContent()}
           </div>
-          
-          {renderContent()}
         </div>
       </div>
     </div>

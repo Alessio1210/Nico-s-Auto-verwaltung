@@ -14,12 +14,17 @@ function BookingCalendar({ vehicleId }) {
       // Lade alle Anfragen aus dem localStorage
       const allRequests = JSON.parse(localStorage.getItem('vehicleRequests') || '[]');
       
-      // Filtere nach genehmigten Anfragen für dieses Fahrzeug
-      const vehicleBookings = allRequests.filter(req => 
-        req.vehicleId.toString() === vehicleId.toString() && 
-        (req.status === 'approved' || req.status === 'pending')
-      );
+      // Filtere nach Anfragen für dieses Fahrzeug
+      const vehicleBookings = allRequests.filter(req => {
+        const reqVehicleId = req.vehicleId && req.vehicleId.toString();
+        const currentVehicleId = vehicleId && vehicleId.toString();
+        return reqVehicleId === currentVehicleId;
+      });
       
+      console.log('Buchungen für Fahrzeug geladen:', vehicleBookings);
+      console.log('Fahrzeug ID:', vehicleId);
+      
+      // Speichere die Buchungen im State
       setBookings(vehicleBookings);
     } catch (error) {
       console.error('Fehler beim Laden der Buchungen:', error);
@@ -76,10 +81,25 @@ function BookingCalendar({ vehicleId }) {
   const hasBookingsForDay = (day) => {
     const date = new Date(currentYear, currentMonth, day);
     return bookings.filter(booking => {
-      const startDate = new Date(booking.startDate);
-      const endDate = new Date(booking.endDate);
+      const startDate = new Date(booking.startDateTime || booking.startDate);
+      const endDate = new Date(booking.endDateTime || booking.endDate);
       return date >= startDate && date <= endDate;
     });
+  };
+  
+  // Prüfe, ob ein Fahrzeug an einem bestimmten Tag ausgebucht ist (nur genehmigte Buchungen)
+  const isFullyBookedForDay = (day) => {
+    const date = new Date(currentYear, currentMonth, day);
+    const approvedBookings = bookings.filter(booking => {
+      const startDate = new Date(booking.startDateTime || booking.startDate);
+      const endDate = new Date(booking.endDateTime || booking.endDate);
+      // Prüfe, ob das Datum im Bereich der Buchung liegt UND der Status 'approved' oder 'Genehmigt' ist
+      return date >= startDate && date <= endDate && 
+             (booking.status === 'approved' || booking.status === 'Genehmigt');
+    });
+    
+    console.log(`Tag ${day} hat ${approvedBookings.length} genehmigte Buchungen`);
+    return approvedBookings.length > 0;
   };
 
   // Rendere den Kalender
@@ -105,17 +125,29 @@ function BookingCalendar({ vehicleId }) {
     for (let day = 1; day <= daysInMonth; day++) {
       const dayBookings = hasBookingsForDay(day);
       const isBooked = dayBookings.length > 0;
+      const isFullyBooked = isFullyBookedForDay(day);
       
       days.push(
         <div 
           key={`day-${day}`} 
-          className={`p-2 border border-gray-200 min-h-[60px] ${
-            isBooked ? 'bg-blue-50' : ''
-          }`}
+          className={`p-2 border ${
+            isFullyBooked 
+              ? 'border-red-500 bg-red-50 shadow-md' 
+              : isBooked 
+                ? 'border-yellow-300 bg-yellow-50' 
+                : 'border-gray-200'
+          } min-h-[60px] relative ${isFullyBooked ? 'z-10' : ''}`}
         >
           <div className="flex justify-between">
-            <span className="font-medium">{day}</span>
-            {isBooked && (
+            <span className={`font-medium ${isFullyBooked ? 'text-red-700' : ''}`}>
+              {day}
+            </span>
+            {isFullyBooked && (
+              <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-800 font-bold animate-pulse">
+                Ausgebucht
+              </span>
+            )}
+            {!isFullyBooked && isBooked && (
               <span className="text-xs px-1 rounded bg-blue-100 text-blue-800">
                 {dayBookings.length}
               </span>
@@ -127,15 +159,21 @@ function BookingCalendar({ vehicleId }) {
                 <div 
                   key={idx}
                   className={`py-1 px-1 mb-1 rounded ${
-                    booking.status === 'approved' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
+                    booking.status === 'approved' || booking.status === 'Genehmigt'
+                      ? 'bg-green-100 text-green-800 border border-green-300 font-semibold' 
+                      : booking.status === 'rejected' || booking.status === 'Abgelehnt'
+                        ? 'bg-gray-100 text-gray-600 line-through'
+                        : 'bg-yellow-100 text-yellow-800'
                   }`}
                 >
-                  {booking.userName.split(' ')[0]}
+                  {booking.userName ? booking.userName.split(' ')[0] : 'Unbekannt'} • 
+                  {booking.vehicleModel ? booking.vehicleModel.split(' ')[0] : 'Fahrzeug'}
                 </div>
               ))}
             </div>
+          )}
+          {isFullyBooked && (
+            <div className="absolute inset-0 border-2 border-red-500 rounded-sm opacity-20 pointer-events-none"></div>
           )}
         </div>
       );
