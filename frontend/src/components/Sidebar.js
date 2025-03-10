@@ -8,10 +8,12 @@ import {
   InboxIcon,
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  UsersIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
-function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActiveView, user }) {
+function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActiveView, user, permissions }) {
   // Icon-Mapping, um die Icon-Namen in tatsächliche Icons umzuwandeln
   const iconMap = {
     'HomeIcon': HomeIcon,
@@ -19,7 +21,9 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
     'CalendarIcon': CalendarIcon,
     'ChartBarIcon': ChartBarIcon,
     'UserIcon': UserIcon,
-    'InboxIcon': InboxIcon
+    'InboxIcon': InboxIcon,
+    'UsersIcon': UsersIcon,
+    'Cog6ToothIcon': Cog6ToothIcon
   };
 
   // Benutzerinfo
@@ -28,22 +32,41 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
     department: isAdmin ? 'IT-Administration' : 'Allgemein'
   };
 
-  // Menüpunkte basierend auf der Benutzerrolle
+  // Standardberechtigungen, falls keine übergeben wurden
+  const userPermissions = permissions || {
+    canBookVehicles: true,
+    canViewStatistics: isAdmin,
+    canManageVehicles: isAdmin,
+    canApproveRequests: isAdmin
+  };
+
+  // Menüpunkte basierend auf der Benutzerrolle und Berechtigungen
   const getMenuItems = () => {
-    if (isAdmin) {
-      return [
-        { id: 'dashboard', name: 'Dashboard', icon: 'HomeIcon' },
-        { id: 'vehicles', name: 'Fahrzeuge', icon: 'TruckIcon' },
-        { id: 'vehicle-requests', name: 'Anfragen', icon: 'InboxIcon' },
-        { id: 'statistics', name: 'Statistiken', icon: 'ChartBarIcon' },
-      ];
-    } else {
-      return [
-        { id: 'dashboard', name: 'Dashboard', icon: 'HomeIcon' },
-        { id: 'vehicles', name: 'Fahrzeuge', icon: 'TruckIcon' },
-        { id: 'my-requests', name: 'Meine Anfragen', icon: 'InboxIcon' },
-      ];
+    const items = [
+      { id: 'dashboard', name: 'Dashboard', icon: 'HomeIcon', show: true },
+      { id: 'vehicles', name: 'Fahrzeuge', icon: 'TruckIcon', show: true }
+    ];
+
+    // Menüpunkte basierend auf Berechtigungen
+    if (userPermissions.canApproveRequests) {
+      items.push({ id: 'vehicle-requests', name: 'Anfragen', icon: 'InboxIcon', show: true });
     }
+
+    if (userPermissions.canViewStatistics) {
+      items.push({ id: 'statistics', name: 'Statistiken', icon: 'ChartBarIcon', show: true });
+    }
+
+    if (userPermissions.canBookVehicles) {
+      items.push({ id: 'my-requests', name: 'Meine Anfragen', icon: 'InboxIcon', show: !isAdmin });
+    }
+
+    // Benutzerverwaltung nur für Admins
+    if (isAdmin) {
+      items.push({ id: 'user-management', name: 'Benutzerverwaltung', icon: 'UsersIcon', show: true });
+    }
+
+    // Nur Menüpunkte zurückgeben, die angezeigt werden sollen
+    return items.filter(item => item.show);
   };
 
   const items = getMenuItems();

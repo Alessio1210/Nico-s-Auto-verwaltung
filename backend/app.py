@@ -34,7 +34,13 @@ def create_default_users():
                 name='Administrator',
                 email='admin@pirelli.com',
                 rolle='Admin',
-                department='IT-Administration'
+                department='IT-Administration',
+                permissions={
+                    'canBookVehicles': True,
+                    'canViewStatistics': True,
+                    'canManageVehicles': True,
+                    'canApproveRequests': True
+                }
             )
             # Passwort mit der set_password-Methode setzen (verwendet password_hash)
             admin.set_password('Admin')
@@ -49,7 +55,13 @@ def create_default_users():
                 name='Normaler Benutzer',
                 email='user@pirelli.com',
                 rolle='Mitarbeiter',
-                department='Vertrieb'
+                department='Vertrieb',
+                permissions={
+                    'canBookVehicles': True,
+                    'canViewStatistics': False,
+                    'canManageVehicles': False,
+                    'canApproveRequests': False
+                }
             )
             # Passwort mit der set_password-Methode setzen (verwendet password_hash)
             user.set_password('user123')
@@ -587,14 +599,7 @@ def get_users():
     users = User.query.all()
     result = []
     for u in users:
-        result.append({
-            "id": u.id,
-            "name": u.name,
-            "rolle": u.rolle,
-            "email": u.email,
-            "department": u.department,
-            "building": u.building
-        })
+        result.append(u.to_dict())
     return jsonify(result)
 
 @app.route('/api/users', methods=['POST'])
@@ -606,20 +611,26 @@ def add_user():
     password = data.get('password')
     department = data.get('department', '')
     building = data.get('building', '')
+    permissions = data.get('permissions', {
+        'canBookVehicles': True,
+        'canViewStatistics': rolle == 'Admin',
+        'canManageVehicles': rolle == 'Admin',
+        'canApproveRequests': rolle == 'Admin'
+    })
     
-    new_user = User(name=name, rolle=rolle, email=email, department=department, building=building)
+    new_user = User(
+        name=name, 
+        rolle=rolle, 
+        email=email, 
+        department=department, 
+        building=building,
+        permissions=permissions
+    )
     new_user.set_password(password)
     
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({"message": "Benutzer erstellt", "user": {
-        "id": new_user.id,
-        "name": new_user.name,
-        "rolle": new_user.rolle,
-        "email": new_user.email,
-        "department": new_user.department,
-        "building": new_user.building
-    }}), 201
+    return jsonify({"message": "Benutzer erstellt", "user": new_user.to_dict()}), 201
 
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
@@ -630,10 +641,17 @@ def update_user(user_id):
     user.email = data.get('email', user.email)
     user.department = data.get('department', user.department)
     user.building = data.get('building', user.building)
-    if 'password' in data:
+    
+    # Berechtigungen aktualisieren, falls vorhanden
+    if 'permissions' in data:
+        user.permissions = data['permissions']
+    
+    # Passwort aktualisieren, falls vorhanden
+    if 'password' in data and data['password']:
         user.set_password(data['password'])
+    
     db.session.commit()
-    return jsonify({"message": "Benutzer aktualisiert"})
+    return jsonify({"message": "Benutzer aktualisiert", "user": user.to_dict()})
 
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
@@ -1344,13 +1362,22 @@ def login():
     # Ist Admin?
     is_admin = user.rolle in ['Admin', 'Administrator']
     
+    # Berechtigungen abrufen
+    permissions = user.permissions or {
+        'canBookVehicles': True,
+        'canViewStatistics': is_admin,
+        'canManageVehicles': is_admin,
+        'canApproveRequests': is_admin
+    }
+    
     return jsonify({
         'success': True,
         'userId': user.id,
         'name': user.name,
         'token': token,
         'isAdmin': is_admin,
-        'department': user.department
+        'department': user.department,
+        'permissions': permissions
     }), 200
 
 # Geschützter Endpunkt (Beispiel)

@@ -4,7 +4,7 @@ import VehicleDetail from './VehicleDetail';
 import BookingCalendar from './BookingCalendar';
 import BookingForm from './BookingForm';
 
-function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdateVehicle, onDeleteVehicle }) {
+function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdateVehicle, onDeleteVehicle, canManageVehicles = false, user }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newVehicle, setNewVehicle] = useState({
@@ -231,10 +231,10 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
       timestamp: new Date().toISOString(),
       requestDate: new Date().toISOString(),
       responseDate: new Date().toISOString(),
-      userId: 'admin-booking',
+      userId: user ? user.id : 'admin-booking',
       userName: requestDetails.userName,
-      userDepartment: 'Extern',
-      responseNote: 'Vom Administrator direkt eingetragen'
+      userDepartment: 'Vom Admin eingetragen',
+      adminBooking: true
     };
 
     console.log("Neue Admin-Buchung wird gespeichert:", newRequest);
@@ -325,7 +325,7 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
               </svg>
             </div>
           </div>
-          {!isUserView && (
+          {canManageVehicles && (
             <>
               <button
                 onClick={() => setShowAddForm(true)}
@@ -537,6 +537,7 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
           onUpdate={handleVehicleUpdate}
           onDelete={handleVehicleDelete}
           isUserView={isUserView}
+          canManageVehicles={canManageVehicles}
         />
       )}
 
@@ -584,9 +585,9 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
                     status: 'pending',
                     timestamp: new Date().toISOString(),
                     requestDate: new Date().toISOString(),
-                    userId: '1', // In einer realen Anwendung würde hier die ID des angemeldeten Benutzers stehen
-                    userName: 'Max Mustermann', // In einer realen Anwendung würde hier der Name des angemeldeten Benutzers stehen
-                    userDepartment: 'Entwicklung', // In einer realen Anwendung würde hier die Abteilung des Benutzers stehen
+                    userId: user ? user.id : 'unknown',
+                    userName: user ? user.name : 'Unbekannter Benutzer',
+                    userDepartment: user ? user.department : 'Unbekannte Abteilung',
                     responseDate: null,
                     responseNote: null
                   };

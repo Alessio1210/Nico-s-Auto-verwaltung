@@ -72,12 +72,30 @@ class User(db.Model):
     password_hash = db.Column(db.String(128))  # Für werkzeug-gehashte Passwörter
     department = db.Column(db.String(100))  # Neue Spalte für Abteilung
     building = db.Column(db.String(100))    # Neue Spalte für Gebäude
+    permissions = db.Column(db.JSON, nullable=True)  # Berechtigungen als JSON-Objekt, optional
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+        
+    def to_dict(self):
+        """Konvertiert das Benutzer-Objekt in ein Dictionary für die API-Antwort"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'rolle': self.rolle,
+            'department': self.department,
+            'building': self.building,
+            'permissions': self.permissions or {
+                'canBookVehicles': True,
+                'canViewStatistics': self.rolle == 'Admin',
+                'canManageVehicles': self.rolle == 'Admin',
+                'canApproveRequests': self.rolle == 'Admin'
+            }
+        }
 
 class Booking(db.Model):
     __tablename__ = 'Bookings'

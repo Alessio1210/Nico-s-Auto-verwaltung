@@ -4,7 +4,7 @@ import DamageReport from './DamageReport';
 import FuelLog from './FuelLog';
 import VehicleCalendar from './VehicleCalendar';
 
-function VehicleDetail({ vehicle, onClose, onUpdate, onDelete, isUserView = false }) {
+function VehicleDetail({ vehicle, onClose, onUpdate, onDelete, isUserView = false, canManageVehicles = false }) {
   const [vehicleData, setVehicleData] = useState(vehicle);
   const [maintenanceHistory, setMaintenanceHistory] = useState([]);
   const [newMaintenance, setNewMaintenance] = useState({
@@ -436,7 +436,7 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete, isUserView = fals
   };
 
   const renderDetailsTab = () => {
-    if (editMode && !isUserView) {
+    if (editMode && canManageVehicles) {
       // Editor-Ansicht für Admins
       // ... existing code ...
     }
@@ -445,7 +445,7 @@ function VehicleDetail({ vehicle, onClose, onUpdate, onDelete, isUserView = fals
       <div className="bg-white p-6 rounded-md shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-semibold">Fahrzeugdetails</h3>
-          {!isUserView && (
+          {canManageVehicles && (
             <div className="space-x-2">
               {!editMode && (
                 <>

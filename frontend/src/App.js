@@ -8,6 +8,7 @@ import StatisticsDashboard from './components/StatisticsDashboard';
 import UserDashboard from './components/UserDashboard';
 import VehicleRequests from './components/VehicleRequests';
 import UserRequests from './components/UserRequests';
+import UserManagement from './components/UserManagement';
 import axios from 'axios';
 
 // Backend-URL
@@ -54,6 +55,12 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState({
+    canBookVehicles: true,
+    canViewStatistics: false,
+    canManageVehicles: false,
+    canApproveRequests: false
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeView, setActiveView] = useState('vehicles');
   
@@ -77,6 +84,12 @@ function App() {
       setUser(userData);
       setIsLoggedIn(true);
       setIsAdmin(userData.isAdmin || false);
+      setUserPermissions(userData.permissions || {
+        canBookVehicles: true,
+        canViewStatistics: userData.isAdmin || false,
+        canManageVehicles: userData.isAdmin || false,
+        canApproveRequests: userData.isAdmin || false
+      });
     }
   }, []);
   
@@ -369,6 +382,12 @@ function App() {
     setUser(userData);
     setIsLoggedIn(true);
     setIsAdmin(userData.isAdmin || false);
+    setUserPermissions(userData.permissions || {
+      canBookVehicles: true,
+      canViewStatistics: userData.isAdmin || false,
+      canManageVehicles: userData.isAdmin || false,
+      canApproveRequests: userData.isAdmin || false
+    });
     
     // Setze die aktive Ansicht basierend auf der Benutzerrolle
     if (userData.isAdmin) {
@@ -383,6 +402,12 @@ function App() {
     setUser(userData);
     setIsLoggedIn(true);
     setIsAdmin(userData.isAdmin || false);
+    setUserPermissions(userData.permissions || {
+      canBookVehicles: true,
+      canViewStatistics: userData.isAdmin || false,
+      canManageVehicles: userData.isAdmin || false,
+      canApproveRequests: userData.isAdmin || false
+    });
     
     // Neue Benutzer sind standardmäßig keine Admins
     setActiveView('vehicles');
@@ -394,6 +419,12 @@ function App() {
     setUser(null);
     setIsLoggedIn(false);
     setIsAdmin(false);
+    setUserPermissions({
+      canBookVehicles: true,
+      canViewStatistics: false,
+      canManageVehicles: false,
+      canApproveRequests: false
+    });
   };
 
   // Renderlogik basierend auf der aktiven Ansicht
@@ -434,13 +465,17 @@ function App() {
           onAddVehicle={addVehicle} 
           onUpdateVehicle={updateVehicle} 
           onDeleteVehicle={deleteVehicle} 
+          canManageVehicles={userPermissions.canManageVehicles}
+          user={user}
         />;
       case 'statistics':
-        return isAdmin ? <StatisticsDashboard /> : null;
+        return userPermissions.canViewStatistics ? <StatisticsDashboard /> : null;
       case 'vehicle-requests':
-        return isAdmin ? <VehicleRequests /> : null;
+        return userPermissions.canApproveRequests ? <VehicleRequests user={user} /> : null;
       case 'my-requests':
-        return !isAdmin ? <UserRequests setActiveView={setActiveView} /> : null;
+        return userPermissions.canBookVehicles ? <UserRequests setActiveView={setActiveView} user={user} /> : null;
+      case 'user-management':
+        return isAdmin ? <UserManagement /> : null;
       default:
         return <VehicleList 
           isUserView={!isAdmin} 
@@ -448,6 +483,8 @@ function App() {
           onAddVehicle={addVehicle} 
           onUpdateVehicle={updateVehicle} 
           onDeleteVehicle={deleteVehicle} 
+          canManageVehicles={userPermissions.canManageVehicles}
+          user={user}
         />;
     }
   };
@@ -477,6 +514,7 @@ function App() {
           activeView={activeView}
           setActiveView={setActiveView}
           user={user}
+          permissions={userPermissions}
         />
         
         {/* Main Content */}

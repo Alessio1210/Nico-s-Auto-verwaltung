@@ -8,7 +8,7 @@ import {
   PlusCircleIcon
 } from '@heroicons/react/24/outline';
 
-function UserRequests({ setActiveView }) {
+function UserRequests({ setActiveView, user }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -27,7 +27,19 @@ function UserRequests({ setActiveView }) {
         let userRequests = [];
         
         if (savedRequests) {
-          userRequests = JSON.parse(savedRequests);
+          const allRequests = JSON.parse(savedRequests);
+          
+          // Filtere die Anfragen nach der Benutzer-ID, wenn ein Benutzer angemeldet ist
+          if (user && user.id) {
+            userRequests = allRequests.filter(request => 
+              request.userId === user.id.toString() || 
+              request.userId === user.id
+            );
+            console.log(`Anfragen für Benutzer ${user.name} (ID: ${user.id}):`, userRequests);
+          } else {
+            userRequests = allRequests;
+            console.log("Kein Benutzer angemeldet oder keine Benutzer-ID vorhanden. Zeige alle Anfragen.");
+          }
 
           // Sortiere nach Datum (neueste zuerst)
           userRequests.sort((a, b) => {
@@ -47,7 +59,7 @@ function UserRequests({ setActiveView }) {
         setLoading(false);
       }
     }, 500);
-  }, []);
+  }, [user]);
 
   // Filtern der Anfragen nach Status
   useEffect(() => {

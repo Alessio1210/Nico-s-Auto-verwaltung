@@ -11,7 +11,7 @@ import {
   PencilSquareIcon
 } from '@heroicons/react/24/outline';
 
-function VehicleRequests() {
+function VehicleRequests({ user }) {
   // Anfragen und Filter
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
@@ -39,206 +39,131 @@ function VehicleRequests() {
   useEffect(() => {
     // Simuliere Ladezeit
     setTimeout(() => {
-      // Standard-Anfragen (werden immer angezeigt)
-      const dummyRequests = [
-        {
-          id: 1,
-          userId: 101,
-          userName: 'Max Mustermann',
-          userDepartment: 'IT',
-          vehicleId: 1,
-          vehicleModel: 'BMW M1',
-          vehicleLicensePlate: 'M-BW 1234',
-          startDateTime: '2025-03-15T08:00:00',
-          endDateTime: '2025-03-15T17:00:00',
-          purpose: 'Kundenbesuch in Stuttgart',
-          destination: 'Stuttgart',
-          passengers: 2,
-          notes: 'Benötige Zugang zur Tiefgarage',
-          status: 'pending',
-          requestDate: '2025-03-01T10:30:00',
-          responseDate: null,
-          responseNote: null
-        },
-        {
-          id: 2,
-          userId: 102,
-          userName: 'Anna Schmidt',
-          userDepartment: 'Marketing',
-          vehicleId: 2,
-          vehicleModel: 'VW Polo',
-          vehicleLicensePlate: 'M-VW 5678',
-          startDateTime: '2025-03-20T09:00:00',
-          endDateTime: '2025-03-20T16:00:00',
-          purpose: 'Messe-Besuch',
-          destination: 'München',
-          passengers: 3,
-          notes: 'Benötige zusätzlich Parkgenehmigung',
-          status: 'approved',
-          requestDate: '2025-03-02T14:15:00',
-          responseDate: '2025-03-03T09:30:00',
-          responseNote: 'Parkgenehmigung liegt im Handschuhfach'
-        },
-        {
-          id: 3,
-          userId: 103,
-          userName: 'Tim Meyer',
-          userDepartment: 'Vertrieb',
-          vehicleId: 3,
-          vehicleModel: 'Audi RS5',
-          vehicleLicensePlate: 'M-AU 9012',
-          startDateTime: '2025-03-18T07:30:00',
-          endDateTime: '2025-03-18T19:00:00',
-          purpose: 'Kundenbesuche im Außendienst',
-          destination: 'Nürnberg',
-          passengers: 1,
-          notes: '',
-          status: 'rejected',
-          requestDate: '2025-03-02T16:45:00',
-          responseDate: '2025-03-04T11:20:00',
-          responseNote: 'Fahrzeug an diesem Tag bereits reserviert. Bitte wählen Sie ein anderes Fahrzeug oder einen anderen Tag.'
-        },
-        {
-          id: 4,
-          userId: 104,
-          userName: 'Laura Müller',
-          userDepartment: 'Produktion',
-          vehicleId: 4,
-          vehicleModel: 'Mercedes GLE',
-          vehicleLicensePlate: 'M-MB 3456',
-          startDateTime: '2025-03-25T10:00:00',
-          endDateTime: '2025-03-25T18:30:00',
-          purpose: 'Transport von Materialien',
-          destination: 'Augsburg',
-          passengers: 2,
-          notes: 'Benötige den größeren Kofferraum',
-          status: 'pending',
-          requestDate: '2025-03-05T08:10:00',
-          responseDate: null,
-          responseNote: null
-        }
-      ];
-      
-      // Versuche, zusätzliche Anfragen aus dem localStorage zu laden
-      let userRequests = [];
       try {
+        // Lade Anfragen aus dem localStorage
         const savedRequests = localStorage.getItem('vehicleRequests');
+        let userRequests = [];
+        
         if (savedRequests) {
-          const parsedRequests = JSON.parse(savedRequests);
-          console.log("Geladene Benutzeranfragen aus localStorage:", parsedRequests);
-          
-          // Lade die gespeicherten Status aus approvedRequests und rejectedRequests
-          const approvedRequestIds = JSON.parse(localStorage.getItem('approvedRequests') || '[]');
-          const rejectedRequestIds = JSON.parse(localStorage.getItem('rejectedRequests') || '[]');
-          
-          console.log("Gespeicherte genehmigte Anfragen:", approvedRequestIds);
-          console.log("Gespeicherte abgelehnte Anfragen:", rejectedRequestIds);
-          
-          // Konvertiere die Anfragen in das Format, das vom Admin erwartet wird
-          userRequests = parsedRequests.map(req => {
-            // Konvertiere das Format, falls notwendig
-            const startDateTime = req.startDateTime || `${req.startDate}T08:00:00`;
-            const endDateTime = req.endDateTime || `${req.endDate}T17:00:00`;
-            
-            // Status-Mapping
-            let status = req.status;
-            if (status === 'Ausstehend') status = 'pending';
-            if (status === 'Genehmigt') status = 'approved';
-            if (status === 'Abgelehnt') status = 'rejected';
-            
-            // Überschreibe den Status basierend auf den gespeicherten Status-IDs
-            if (approvedRequestIds.includes(req.id)) {
-              status = 'approved';
-              console.log(`Anfrage ${req.id} ist als genehmigt gespeichert und wird entsprechend angezeigt.`);
-            } else if (rejectedRequestIds.includes(req.id)) {
-              status = 'rejected';
-              console.log(`Anfrage ${req.id} ist als abgelehnt gespeichert und wird entsprechend angezeigt.`);
-            }
-            
-            return {
-              id: req.id,
-              userId: req.userId || 999,
-              userName: req.userName || 'Benutzer',
-              userDepartment: req.userDepartment || 'Allgemein',
-              vehicleId: req.vehicleId,
-              vehicleModel: req.vehicleModel,
-              vehicleLicensePlate: req.licensePlate || req.vehicleLicensePlate,
-              startDateTime: startDateTime,
-              endDateTime: endDateTime,
-              purpose: req.purpose,
-              destination: req.destination || 'Nicht angegeben',
-              passengers: req.passengers || 1,
-              notes: req.notes || '',
-              status: status,
-              requestDate: req.timestamp || new Date().toISOString(),
-              responseDate: req.responseDate || null,
-              responseNote: req.responseNote || null
-            };
-          });
-          
-          console.log("Konvertierte Benutzeranfragen für Admin:", userRequests);
+          userRequests = JSON.parse(savedRequests);
+          console.log("Geladene Anfragen aus localStorage:", userRequests);
         }
+        
+        // Kombiniere mit Dummy-Daten für die Demo
+        const dummyRequests = [
+          {
+            id: 1,
+            userId: 101,
+            userName: 'Max Mustermann',
+            userDepartment: 'IT',
+            vehicleId: 1,
+            vehicleModel: 'BMW M1',
+            vehicleLicensePlate: 'M-BW 1234',
+            startDateTime: '2025-03-15T08:00:00',
+            endDateTime: '2025-03-15T17:00:00',
+            purpose: 'Kundenbesuch in Stuttgart',
+            destination: 'Stuttgart',
+            passengers: 2,
+            notes: 'Benötige Zugang zur Tiefgarage',
+            status: 'pending',
+            requestDate: '2025-03-01T10:30:00',
+            responseDate: null,
+            responseNote: null
+          },
+          {
+            id: 2,
+            userId: 102,
+            userName: 'Anna Schmidt',
+            userDepartment: 'Marketing',
+            vehicleId: 2,
+            vehicleModel: 'VW Polo',
+            vehicleLicensePlate: 'M-VW 5678',
+            startDateTime: '2025-03-20T09:00:00',
+            endDateTime: '2025-03-20T16:00:00',
+            purpose: 'Messe-Besuch',
+            destination: 'München',
+            passengers: 3,
+            notes: 'Benötige zusätzlich Parkgenehmigung',
+            status: 'approved',
+            requestDate: '2025-03-02T14:15:00',
+            responseDate: '2025-03-03T09:30:00',
+            responseNote: 'Parkgenehmigung liegt im Handschuhfach'
+          },
+          {
+            id: 3,
+            userId: 103,
+            userName: 'Tim Meyer',
+            userDepartment: 'Vertrieb',
+            vehicleId: 3,
+            vehicleModel: 'Audi RS5',
+            vehicleLicensePlate: 'M-AU 9012',
+            startDateTime: '2025-03-18T07:30:00',
+            endDateTime: '2025-03-18T19:00:00',
+            purpose: 'Kundenbesuche im Außendienst',
+            destination: 'Nürnberg',
+            passengers: 1,
+            notes: '',
+            status: 'rejected',
+            requestDate: '2025-03-02T16:45:00',
+            responseDate: '2025-03-04T11:20:00',
+            responseNote: 'Fahrzeug an diesem Tag bereits reserviert. Bitte wählen Sie ein anderes Fahrzeug oder einen anderen Tag.'
+          }
+        ];
+        
+        // Kombiniere die Anfragen aus dem localStorage mit den Dummy-Daten
+        // Verwende nur Dummy-Daten, wenn keine Anfragen im localStorage sind
+        const allRequests = userRequests.length > 0 ? userRequests : [...dummyRequests];
+        
+        // Sortiere nach Datum (neueste zuerst)
+        allRequests.sort((a, b) => {
+          return new Date(b.requestDate) - new Date(a.requestDate);
+        });
+        
+        // Teile die Anfragen in aktuelle und archivierte auf
+        const now = new Date();
+        const current = [];
+        const archived = [];
+        
+        allRequests.forEach(request => {
+          const endDate = new Date(request.endDateTime);
+          if (endDate < now) {
+            archived.push(request);
+          } else {
+            current.push(request);
+          }
+        });
+        
+        // Sortiere die Anfragen nach Datum (neueste zuerst)
+        current.sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
+        archived.sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
+        
+        console.log(`${current.length} aktuelle Anfragen und ${archived.length} archivierte Anfragen.`);
+        
+        setRequests(current);
+        setArchivedRequests(archived);
+        setFilteredRequests(current); // Standardmäßig zeige aktuelle Anfragen
       } catch (err) {
-        console.error("Fehler beim Laden der Benutzeranfragen:", err);
+        console.error("Fehler beim Laden der Anfragen:", err);
+        setRequests([]);
+        setArchivedRequests([]);
+        setFilteredRequests([]);
+      } finally {
+        setLoading(false);
       }
-      
-      // Kombiniere die Standard-Anfragen mit den Benutzeranfragen
-      const allRequests = [...dummyRequests, ...userRequests];
-      
-      // Gib Feedback in der Konsole, wenn Benutzeranfragen gefunden wurden
-      if (userRequests.length > 0) {
-        console.log(`${userRequests.length} Benutzeranfragen wurden geladen und mit den Demo-Anfragen kombiniert.`);
-      }
-      
-      // Teile die Anfragen in aktuelle und archivierte auf
-      const current = [];
-      const archived = [];
-      
-      allRequests.forEach(request => {
-        if (shouldBeArchived(request)) {
-          archived.push(request);
-        } else {
-          current.push(request);
-        }
-      });
-      
-      // Sortiere die Anfragen nach Datum (neueste zuerst)
-      current.sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
-      archived.sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
-      
-      console.log(`${current.length} aktuelle Anfragen und ${archived.length} archivierte Anfragen.`);
-      
-      setRequests(current);
-      setArchivedRequests(archived);
-      setFilteredRequests(current); // Standardmäßig zeige aktuelle Anfragen
-      setLoading(false);
     }, 1000);
   }, []);
 
   // Filtern der Anfragen nach Status
   useEffect(() => {
     if (filter === 'all') {
-      setFilteredRequests(showArchive ? archivedRequests : requests.filter(req => !shouldBeArchived(req)));
+      setFilteredRequests(showArchive ? archivedRequests : requests);
     } else {
       const filteredByStatus = requests.filter(request => request.status === filter);
       setFilteredRequests(showArchive 
         ? archivedRequests.filter(request => request.status === filter)
-        : filteredByStatus.filter(req => !shouldBeArchived(req)));
+        : filteredByStatus);
     }
   }, [filter, requests, archivedRequests, showArchive]);
-
-  // Prüfen, ob eine Anfrage archiviert werden sollte
-  const shouldBeArchived = (request) => {
-    const now = new Date();
-    const endDate = new Date(request.endDateTime);
-    
-    // Nur Anfragen archivieren, deren Enddatum in der Vergangenheit liegt (abgeschlossene Termine)
-    if (endDate < now) {
-      return true;
-    }
-    
-    return false;
-  };
 
   // Hilfsfunktion zur Formatierung von Datum/Zeit
   const formatDateTime = (dateTimeString) => {
