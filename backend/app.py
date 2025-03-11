@@ -18,8 +18,8 @@ app.config.from_object(Config)
 # Secret Key für JWT
 app.config['JWT_SECRET_KEY'] = 'geheim-und-sicher-schluessel'  # In Produktion würde man einen sicheren Schlüssel verwenden
 
-# Erlaubt Cross-Origin Requests
-CORS(app)
+# Erlaubt Cross-Origin Requests mit ausführlicher Konfiguration
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 db.init_app(app)
 
