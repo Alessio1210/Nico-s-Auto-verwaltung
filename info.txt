@@ -1,1 +1,6 @@
 Test User: Test.User123
+
+
+
+pip index versions flask flask-cors flask-sqlalchemy python-dotenv | cat
+

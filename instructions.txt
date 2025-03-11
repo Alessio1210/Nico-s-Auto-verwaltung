@@ -108,4 +108,4 @@ Die Webapplikation dient zur Verwaltung des Fuhrparks eines Unternehmens. Mitarb
 
 Diese Webapp bietet eine vollständige Lösung für das Fuhrparkmanagement. Die intuitive UI und das Dashboard mit Kalender- und Statistikfunktionen ermöglichen eine effiziente Verwaltung der Fahrzeuge. Die Webseite soll ein modernes und ästhetisches Design haben, das durch abgerundete Elemente und eine benutzerfreundliche Oberfläche überzeugt. Inspiriert von Plattformen wie Apple, Tesla und Notion soll die Webapp eine klare und angenehme Nutzererfahrung bieten. Zusätzliche Features wie Wartungsmodi und Erinnerungen optimieren den Workflow. Durch die modulare Architektur kann die Webapp problemlos erweitert werden.
 
- 
+ a
