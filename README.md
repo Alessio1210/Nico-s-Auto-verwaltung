@@ -76,6 +76,52 @@ Die Anwendung verwendet SQL Server Express. Stelle sicher, dass:
    python scripts/seed_data.py
    ```
 
+### Installation auf einem anderen PC mit anderer Datenbank
+1. Klone das Repository:
+   ```bash
+   git clone https://github.com/dein-username/fuhrpark-webapp.git
+   cd fuhrpark-webapp
+   ```
+
+2. Für eine andere Datenbank als SQL Server:
+   - MySQL:
+     ```
+     pip install pymysql
+     ```
+     Ändere die Verbindungszeichenfolge in `.env`:
+     ```
+     DATABASE_CONNECTION=mysql+pymysql://benutzername:passwort@localhost/fuhrpark
+     ```
+   
+   - PostgreSQL:
+     ```
+     pip install psycopg2-binary
+     ```
+     Ändere die Verbindungszeichenfolge in `.env`:
+     ```
+     DATABASE_CONNECTION=postgresql://benutzername:passwort@localhost/fuhrpark
+     ```
+   
+   - SQLite (für einfache Tests):
+     ```
+     DATABASE_CONNECTION=sqlite:///fuhrpark.db
+     ```
+
+3. Erstelle die Datenbank-Tabellen:
+   - Option 1: Verwende Flask-Migrationen (wenn auf dem Ziel-System zugänglich):
+     ```bash
+     cd backend
+     flask db upgrade
+     ```
+   - Option 2: Führe das SQL-Skript manuell aus (siehe `db_setup.sql` im Hauptverzeichnis)
+
+4. Backend- und Frontend-Setup wie oben beschrieben durchführen
+
+5. Für die Entwicklung auf einem anderen PC:
+   - Ändere ggf. die Ports in den Umgebungsvariablen, falls die Standardports 3000/5000 bereits belegt sind
+   - Bei Netzwerkproblemen: Stelle sicher, dass die Firewall die Ports freigibt
+   - Wenn Backend und Frontend auf verschiedenen Rechnern laufen: Passe die `REACT_APP_API_URL` entsprechend an
+
 ## Funktionen
 
 - **Fahrzeugverwaltung**  

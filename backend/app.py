@@ -18,7 +18,7 @@ app.config.from_object(Config)
 # Secret Key für JWT
 app.config['JWT_SECRET_KEY'] = 'geheim-und-sicher-schluessel'  # In Produktion würde man einen sicheren Schlüssel verwenden
 
-# Zurück zur einfachen CORS-Konfiguration
+# Erlaubt Cross-Origin Requests
 CORS(app)
 
 db.init_app(app)
@@ -1417,7 +1417,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()  # Stelle sicher, dass alle Tabellen existieren
         create_default_users()  # Erstelle die Standardbenutzer
-    app.run(debug=True, host='0.0.0.0') 
+    app.run(host='0.0.0.0', port=5000, debug=True) 
 
 
 
