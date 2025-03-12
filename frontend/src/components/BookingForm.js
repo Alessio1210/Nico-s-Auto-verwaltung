@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CalendarIcon, ClockIcon, ArrowRightIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
@@ -20,6 +20,37 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
   // Aktuelles Datum berechnen (für min-Werte in den Datumsfeldern)
   const today = new Date().toISOString().split('T')[0];
 
+  // Refs für Fokusbewahrung
+  const inputRefs = {
+    purpose: useRef(null),
+    destination: useRef(null),
+    passengers: useRef(null),
+    notes: useRef(null)
+  };
+
+  // Aktuelle Feldnamen, die bearbeitet werden
+  const [activeField, setActiveField] = useState(null);
+
+  // Fokuswiederherstellung nach Rendering
+  useEffect(() => {
+    if (activeField && inputRefs[activeField] && inputRefs[activeField].current) {
+      const input = inputRefs[activeField].current;
+      const length = input.value.length;
+      
+      // Setze den Cursor an die Stelle, an der er war
+      requestAnimationFrame(() => {
+        input.focus();
+        try {
+          // Wenn möglich, setze den Cursor ans Ende des Texts
+          input.setSelectionRange(length, length);
+        } catch (e) {
+          // Einige Input-Typen unterstützen setSelectionRange nicht
+          console.log("Konnte Cursor-Position nicht setzen");
+        }
+      });
+    }
+  }, [bookingData, activeField]);
+
   // Validierung für den aktuellen Schritt
   const validateStep = () => {
     switch (formStep) {
@@ -34,10 +65,10 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
     }
   };
 
-  // Führe die Validierung aus, wenn sich die Daten ändern
+  // Führe die Validierung nur aus, wenn sich der formStep ändert
   useEffect(() => {
     setValidated(validateStep());
-  }, [bookingData, formStep]);
+  }, [formStep]);
 
   // Prüfe Verfügbarkeit, wenn sich die Daten ändern
   useEffect(() => {
@@ -63,10 +94,41 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
   // Handler für Änderungen an Formularfeldern
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setBookingData(prev => ({
-      ...prev,
+    
+    // Markiere das aktive Feld für Fokusbewahrung
+    setActiveField(name);
+    
+    // Spezielle Validierung für Datumsfelder
+    if (name === 'startDate') {
+      // Wenn Startdatum geändert wird, stelle sicher, dass es nicht in der Vergangenheit liegt
+      const selectedDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Setze auf Beginn des Tages für korrekten Vergleich
+      
+      if (selectedDate < today) {
+        alert('Termine in der Vergangenheit können nicht gebucht werden.');
+        return; // Verhindere die Änderung
+      }
+      
+      // Setze auch Enddatum, wenn es leer ist oder vor dem neuen Startdatum liegt
+      if (!bookingData.endDate || new Date(bookingData.endDate) < selectedDate) {
+        setBookingData({
+          ...bookingData,
+          [name]: value,
+          endDate: value // Setze Enddatum auf gleiches Datum
+        });
+        return;
+      }
+    }
+    
+    // Aktualisiere State
+    setBookingData(prevData => ({
+      ...prevData,
       [name]: value
     }));
+    
+    // Führe die Validierung direkt hier durch
+    setValidated(validateStep());
   };
 
   // Zum nächsten Schritt gehen
@@ -244,6 +306,7 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
             name="purpose"
             value={bookingData.purpose}
             onChange={handleChange}
+            ref={inputRefs.purpose}
             placeholder="z.B. Kundentermin, Materialtransport"
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             required
@@ -259,6 +322,7 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
             name="destination"
             value={bookingData.destination}
             onChange={handleChange}
+            ref={inputRefs.destination}
             placeholder="z.B. München, Stuttgart"
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             required
@@ -276,6 +340,7 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
             max="9"
             value={bookingData.passengers}
             onChange={handleChange}
+            ref={inputRefs.passengers}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -288,6 +353,7 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
             name="notes"
             value={bookingData.notes}
             onChange={handleChange}
+            ref={inputRefs.notes}
             rows="3"
             placeholder="z.B. Besondere Anforderungen, Parkmöglichkeiten, etc."
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"

@@ -211,13 +211,21 @@ function UserManagement() {
       if (isCreating) {
         // Neuen Benutzer erstellen
         const response = await axios.post(`${BASE_URL}/api/users`, formData);
+        // Die Antwort enthält direkt das Benutzerobjekt
         setUsers([...users, response.data]);
+        
+        // Lade alle Benutzer neu, um sicherzustellen, dass die Liste aktuell ist
+        loadUsers();
       } else if (isEditing && selectedUser) {
         // Bestehenden Benutzer aktualisieren
         const response = await axios.put(`${BASE_URL}/api/users/${selectedUser.id}`, formData);
+        // Die Antwort enthält das aktualisierte Benutzerobjekt
         setUsers(users.map(user => 
           user.id === selectedUser.id ? response.data : user
         ));
+        
+        // Lade alle Benutzer neu, um sicherzustellen, dass die Liste aktuell ist
+        loadUsers();
       }
       
       // Formular zurücksetzen

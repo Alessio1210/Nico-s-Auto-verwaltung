@@ -107,8 +107,11 @@ class Booking(db.Model):
     status = db.Column(db.String(50), nullable=False, default='Angefragt')  # z. B. "Angefragt", "akzeptiert", "abgelehnt"
     zweck = db.Column(db.String(255), default='')       # Neuer Parameter: Wofür wird das Fahrzeug genutzt?
     auto_groesse = db.Column(db.String(50), default='')   # Neuer Parameter: Gewünschte Fahrzeuggröße
+    genehmigt_von_id = db.Column(db.Integer, db.ForeignKey('Users.id'), nullable=True)  # ID des Administrators, der die Anfrage genehmigt hat
+    genehmigt_am = db.Column(db.DateTime, nullable=True)  # Zeitpunkt der Genehmigung
 
-    user = db.relationship("User", backref="bookings")
+    user = db.relationship("User", backref="bookings", foreign_keys=[user_id])
+    genehmiger = db.relationship("User", backref="genehmigte_bookings", foreign_keys=[genehmigt_von_id])
 
 class MaintenanceRecord(db.Model):
     __tablename__ = 'Wartungshistorie'

@@ -630,7 +630,7 @@ def add_user():
     
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({"message": "Benutzer erstellt", "user": new_user.to_dict()}), 201
+    return jsonify(new_user.to_dict()), 201
 
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
@@ -651,7 +651,7 @@ def update_user(user_id):
         user.set_password(data['password'])
     
     db.session.commit()
-    return jsonify({"message": "Benutzer aktualisiert", "user": user.to_dict()})
+    return jsonify(user.to_dict())
 
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):

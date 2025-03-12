@@ -231,11 +231,20 @@ function VehicleRequests({ user }) {
         const requestIndex = userRequests.findIndex(req => req.id.toString() === requestId.toString());
         
         if (requestIndex !== -1) {
+          // Hole den aktuellen Benutzer für die Genehmigungsinfo
+          const currentUser = JSON.parse(localStorage.getItem('user')) || {
+            name: 'Administrator',
+            id: 1
+          };
+          
           userRequests[requestIndex] = {
             ...userRequests[requestIndex],
             status: 'approved',
             responseDate: new Date().toISOString(),
-            responseNote: note || null
+            responseNote: note || null,
+            approvedById: currentUser.id,
+            approvedByName: currentUser.name,
+            approvedAt: new Date().toISOString()
           };
           
           // Speichere die Änderungen im localStorage
@@ -310,10 +319,6 @@ function VehicleRequests({ user }) {
 
   // Handler für die Ablehnung einer Anfrage
   const handleReject = (requestId, note = '') => {
-    // In einer echten Anwendung: API-Aufruf zur Ablehnung der Anfrage
-    // Dieser Teil würde normalerweise den API-Aufruf implementieren
-    
-    // Speichere die abgelehnte Anfrage in einer separaten Variable im localStorage
     try {
       // Speichere die ID in der Liste der abgelehnten Anfragen
       const rejectedRequests = JSON.parse(localStorage.getItem('rejectedRequests') || '[]');
@@ -334,14 +339,22 @@ function VehicleRequests({ user }) {
         const requestIndex = userRequests.findIndex(req => req.id.toString() === requestId.toString());
         
         if (requestIndex !== -1) {
+          // Hole den aktuellen Benutzer für die Ablehnungsinfo
+          const currentUser = JSON.parse(localStorage.getItem('user')) || {
+            name: 'Administrator',
+            id: 1
+          };
+          
           userRequests[requestIndex] = {
             ...userRequests[requestIndex],
             status: 'rejected',
             responseDate: new Date().toISOString(),
-            responseNote: note || 'Anfrage abgelehnt'
+            responseNote: note || null,
+            rejectedById: currentUser.id,
+            rejectedByName: currentUser.name,
+            rejectedAt: new Date().toISOString()
           };
           
-          // Speichere die Änderungen im localStorage
           localStorage.setItem('vehicleRequests', JSON.stringify(userRequests));
           console.log("Anfrage im localStorage aktualisiert (abgelehnt):", requestId);
         }
@@ -359,7 +372,7 @@ function VehicleRequests({ user }) {
                 ...req, 
                 status: 'rejected', 
                 responseDate: new Date().toISOString(),
-                responseNote: note || 'Anfrage abgelehnt'
+                responseNote: note || null
               } 
             : req
         );
@@ -383,7 +396,7 @@ function VehicleRequests({ user }) {
                 ...req, 
                 status: 'rejected', 
                 responseDate: new Date().toISOString(),
-                responseNote: note || 'Anfrage abgelehnt'
+                responseNote: note || null
               } 
             : req
         );
@@ -728,9 +741,17 @@ function VehicleRequests({ user }) {
             
             {/* Antwort, falls vorhanden */}
             {selectedRequest.responseDate && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-md">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Antwort</h4>
-                <p className="text-sm text-gray-600">Beantwortet am {formatDateTime(selectedRequest.responseDate)}</p>
+              <div className={`mb-6 p-4 rounded-md ${selectedRequest.status === 'approved' ? 'bg-green-50 border-l-4 border-green-400' : selectedRequest.status === 'rejected' ? 'bg-red-50 border-l-4 border-red-400' : 'bg-gray-50'}`}>
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Anmerkung vom Administrator:</h4>
+                <p className="text-sm text-gray-600">
+                  {selectedRequest.status === 'approved' ? 'Genehmigt' : selectedRequest.status === 'rejected' ? 'Abgelehnt' : 'Beantwortet'} am {formatDateTime(selectedRequest.responseDate)}
+                  {selectedRequest.approvedByName && (
+                    <span> von <strong>{selectedRequest.approvedByName}</strong></span>
+                  )}
+                  {selectedRequest.rejectedByName && (
+                    <span> von <strong>{selectedRequest.rejectedByName}</strong></span>
+                  )}
+                </p>
                 {selectedRequest.responseNote && (
                   <p className="mt-2">{selectedRequest.responseNote}</p>
                 )}
