@@ -6,11 +6,12 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  PlusCircleIcon
 } from '@heroicons/react/24/outline';
 
-function UserDashboard() {
-  // Dummy-Daten für das Benutzer-Dashboard
+function UserDashboard({ data, user }) {
+  // State für Benutzer-Dashboard, wird mit übergebenen Daten oder Dummy-Daten befüllt
   const [userDashboard, setUserDashboard] = useState({
     // Dummy Benutzer für die Demo
     currentUser: {
@@ -43,11 +44,53 @@ function UserDashboard() {
     }
   });
 
-  // Effekt zum Laden echter Daten (momentan deaktiviert)
+  // Effekt zum Verarbeiten der übergebenen Daten
   useEffect(() => {
-    // Hier später echte API-Aufrufe implementieren
-    // Momentan verwenden wir Dummy-Daten
-  }, []);
+    if (data) {
+      const processedData = {...userDashboard};
+
+      // Setze Benutzerdaten, wenn vorhanden
+      if (user) {
+        processedData.currentUser = user;
+      }
+      
+      // Extrahiere Benutzerbuchungen und verfügbare Fahrzeuge aus den übergebenen Daten
+      if (data.bookings && Array.isArray(data.bookings)) {
+        // Für einen regulären Benutzer nur seine eigenen Buchungen anzeigen
+        if (user) {
+          const userBookings = data.bookings.filter(booking => {
+            return booking.userId === user.id || booking.userName === user.name;
+          });
+          
+          processedData.userBookings = userBookings;
+          
+          // Aktualisiere Benutzerstatistiken basierend auf Buchungsdaten
+          const stats = {
+            totalBookings: userBookings.length,
+            upcomingBookings: userBookings.filter(b => b.status === 'angefragt' || b.status === 'akzeptiert').length,
+            completedBookings: userBookings.filter(b => b.status === 'abgeschlossen').length,
+            rejectedBookings: userBookings.filter(b => b.status === 'abgelehnt').length,
+            totalDistance: userBookings.reduce((total, booking) => {
+              return total + (booking.distance || 0);
+            }, 0)
+          };
+          
+          processedData.userStats = stats;
+        }
+      }
+      
+      // Verfügbare Fahrzeuge extrahieren
+      if (data.vehicles && Array.isArray(data.vehicles)) {
+        const availableVehicles = data.vehicles.filter(vehicle => {
+          return vehicle.status === 'Verfügbar' || vehicle.status === 'verfügbar';
+        });
+        
+        processedData.availableVehicles = availableVehicles;
+      }
+      
+      setUserDashboard(processedData);
+    }
+  }, [data, user]);
 
   // Hilfsfunktion zur Formatierung von Datum/Zeit
   const formatDateTime = (dateTimeString) => {
@@ -101,6 +144,11 @@ function UserDashboard() {
         );
     }
   };
+
+  // Handler für Fahrzeuganfrage
+  const handleRequestVehicle = (vehicleId) => {
+    alert(`Fahrzeug mit ID ${vehicleId} wird angefragt. Diese Funktion ist noch nicht vollständig implementiert.`);
+  };
   
   return (
     <div className="space-y-6">
@@ -113,8 +161,8 @@ function UserDashboard() {
           <div className="ml-4">
             <h2 className="text-xl font-bold text-gray-800">Willkommen, {userDashboard.currentUser.name}</h2>
             <div className="mt-1 text-sm text-gray-500">
-              <p>Abteilung: {userDashboard.currentUser.department}</p>
-              <p>Email: {userDashboard.currentUser.email}</p>
+              <p>Abteilung: {userDashboard.currentUser.department || 'Nicht angegeben'}</p>
+              <p>Email: {userDashboard.currentUser.email || 'Nicht angegeben'}</p>
             </div>
           </div>
         </div>
@@ -171,37 +219,70 @@ function UserDashboard() {
         </div>
       </div>
 
+      {/* Schnellzugriff für neue Anfrage */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800">Neue Fahrzeuganfrage</h3>
+          <button 
+            onClick={() => alert('Funktion noch nicht implementiert')} 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
+          >
+            <PlusCircleIcon className="h-5 w-5 mr-2" />
+            Fahrzeug anfragen
+          </button>
+        </div>
+      </div>
+
       {/* Meine Buchungen */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800">Meine Buchungen</h3>
         </div>
         <div className="px-6 py-4">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fahrzeug</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Von</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bis</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {userDashboard.userBookings.map(booking => (
-                  <tr key={booking.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{booking.vehicle}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatDateTime(booking.startTime)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatDateTime(booking.endTime)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">{renderStatus(booking.status)}</td>
+          {userDashboard.userBookings.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fahrzeug</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Von</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bis</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {userDashboard.userBookings.map(booking => (
+                    <tr key={booking.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {booking.vehicleName || booking.vehicle}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatDateTime(booking.startTime)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatDateTime(booking.endTime)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">{renderStatus(booking.status)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>Sie haben noch keine Buchungen.</p>
+              <button 
+                onClick={() => alert('Funktion noch nicht implementiert')} 
+                className="mt-2 text-blue-600 hover:text-blue-800"
+              >
+                Erste Buchung erstellen
+              </button>
+            </div>
+          )}
         </div>
         <div className="px-6 py-3 bg-gray-50 text-right">
-          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">Alle Buchungen anzeigen →</button>
+          <button 
+            onClick={() => alert('Funktion noch nicht implementiert')} 
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Alle Buchungen anzeigen →
+          </button>
         </div>
       </div>
 
@@ -211,35 +292,55 @@ function UserDashboard() {
           <h3 className="text-lg font-semibold text-gray-800">Verfügbare Fahrzeuge</h3>
         </div>
         <div className="px-6 py-4">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modell</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kennzeichen</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kilometerstand</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {userDashboard.availableVehicles.map(vehicle => (
-                  <tr key={vehicle.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{vehicle.model}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{vehicle.licensePlate}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{vehicle.mileage.toLocaleString()} km</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition duration-150 ease-in-out">
-                        Anfragen
-                      </button>
-                    </td>
+          {userDashboard.availableVehicles.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modell</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kennzeichen</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kilometerstand</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {userDashboard.availableVehicles.map(vehicle => (
+                    <tr key={vehicle.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {vehicle.model || vehicle.marke || 'Unbekannt'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {vehicle.licensePlate || vehicle.kennzeichen || 'Unbekannt'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {(vehicle.mileage || vehicle.kilometerstand || 0).toLocaleString()} km
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <button 
+                          onClick={() => handleRequestVehicle(vehicle.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition duration-150 ease-in-out"
+                        >
+                          Anfragen
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>Derzeit sind keine Fahrzeuge verfügbar.</p>
+            </div>
+          )}
         </div>
         <div className="px-6 py-3 bg-gray-50 text-right">
-          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">Alle Fahrzeuge anzeigen →</button>
+          <button 
+            onClick={() => alert('Funktion noch nicht implementiert')} 
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Alle Fahrzeuge anzeigen →
+          </button>
         </div>
       </div>
     </div>

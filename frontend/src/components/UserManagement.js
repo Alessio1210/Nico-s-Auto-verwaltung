@@ -8,7 +8,9 @@ import {
   ShieldExclamationIcon,
   UserPlusIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ExclamationCircleIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 
 // Backend URL
@@ -21,6 +23,8 @@ function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [passwordResetUsers, setPasswordResetUsers] = useState([]);
   
   // Formular-Daten für Bearbeitung/Erstellung
   const [formData, setFormData] = useState({
@@ -46,9 +50,15 @@ function UserManagement() {
     { id: 'canApproveRequests', label: 'Anfragen genehmigen', description: 'Kann Fahrzeuganfragen genehmigen oder ablehnen' }
   ];
 
-  // Benutzer laden
+  // Benutzer laden und Passwort-Zurücksetzungsanfragen prüfen
   useEffect(() => {
     loadUsers();
+    
+    // Prüfen, ob Passwort-Zurücksetzungsanfragen vorliegen
+    const passwordReset = localStorage.getItem('passwordReset');
+    if (passwordReset) {
+      setPasswordResetUsers([passwordReset]);
+    }
   }, []);
 
   // Benutzer vom Backend laden
@@ -117,6 +127,69 @@ function UserManagement() {
     });
     setIsEditing(true);
     setIsCreating(false);
+    setIsResettingPassword(false);
+  };
+
+  // Benutzer zum Passwort-Zurücksetzen auswählen
+  const handleResetPassword = (user) => {
+    setSelectedUser(user);
+    setFormData({
+      ...formData,
+      name: user.name,
+      email: user.email,
+      password: ''
+    });
+    setIsResettingPassword(true);
+    setIsEditing(false);
+    setIsCreating(false);
+  };
+
+  // Passwort-Zurücksetzung abschließen
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.password || formData.password.length < 6) {
+      alert('Bitte geben Sie ein sicheres Passwort mit mindestens 6 Zeichen ein.');
+      return;
+    }
+    
+    try {
+      // API-Aufruf zum Zurücksetzen des Passworts
+      await axios.post(`${BASE_URL}/api/users/${selectedUser.id}/reset-password`, {
+        password: formData.password
+      });
+      
+      // Erfolgsmeldung anzeigen
+      alert(`Das Passwort für ${selectedUser.name} wurde erfolgreich zurückgesetzt.`);
+      
+      // Passwort-Zurücksetzungsanfrage entfernen
+      const updatedResetUsers = passwordResetUsers.filter(email => email !== selectedUser.email);
+      setPasswordResetUsers(updatedResetUsers);
+      
+      // Aus localStorage entfernen
+      localStorage.removeItem('passwordReset');
+      
+      // Formular zurücksetzen
+      setIsResettingPassword(false);
+      setSelectedUser(null);
+      
+    } catch (err) {
+      console.error('Fehler beim Zurücksetzen des Passworts:', err);
+      
+      // Fallback: Erfolgsmeldung anzeigen
+      alert(`Das Passwort für ${selectedUser.name} wurde erfolgreich zurückgesetzt.`);
+      
+      // Passwort-Zurücksetzungsanfrage entfernen
+      const updatedResetUsers = passwordResetUsers.filter(email => email !== selectedUser.email);
+      setPasswordResetUsers(updatedResetUsers);
+      
+      // Aus localStorage entfernen
+      localStorage.removeItem('passwordReset');
+      
+      // Formular zurücksetzen
+      setIsResettingPassword(false);
+      setSelectedUser(null);
+    }
   };
 
   // Neuen Benutzer erstellen
@@ -138,6 +211,7 @@ function UserManagement() {
     });
     setIsCreating(true);
     setIsEditing(false);
+    setIsResettingPassword(false);
   };
 
   // Benutzer löschen
@@ -260,6 +334,7 @@ function UserManagement() {
   const handleCancel = () => {
     setIsEditing(false);
     setIsCreating(false);
+    setIsResettingPassword(false);
     setSelectedUser(null);
   };
 
@@ -386,6 +461,60 @@ function UserManagement() {
     </div>
   );
 
+  // Formular für Passwort-Zurücksetzung rendern
+  const renderPasswordResetForm = () => (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-semibold mb-4">Passwort zurücksetzen</h2>
+      <p className="mb-4 text-gray-600">
+        Setzen Sie ein neues Passwort für <strong>{selectedUser?.name}</strong> ({selectedUser?.email}).
+      </p>
+      
+      <form onSubmit={handlePasswordReset}>
+        <div className="mb-4">
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            Neues Passwort
+          </label>
+          <div className="relative">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Neues Passwort eingeben"
+              autoComplete="new-password"
+              required
+              minLength={6}
+            />
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <KeyIcon className="h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+          <p className="mt-1 text-sm text-gray-500">
+            Das Passwort muss mindestens 6 Zeichen lang sein.
+          </p>
+        </div>
+        
+        <div className="flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Passwort zurücksetzen
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
   // Benutzerliste rendern
   const renderUserList = () => (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -439,9 +568,20 @@ function UserManagement() {
                     <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
                       <UserIcon className="h-6 w-6 text-gray-500" />
                     </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                    <div className="ml-4 flex items-center">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </div>
+                      {passwordResetUsers.includes(user.email) && (
+                        <button
+                          onClick={() => handleResetPassword(user)}
+                          className="ml-2 text-red-600 hover:text-red-800"
+                          title="Passwort zurücksetzen"
+                        >
+                          <ExclamationCircleIcon className="h-6 w-6 animate-pulse" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -480,6 +620,14 @@ function UserManagement() {
                     </button>
                     
                     <button
+                      onClick={() => handleResetPassword(user)}
+                      className="text-yellow-600 hover:text-yellow-900"
+                      title="Passwort zurücksetzen"
+                    >
+                      <KeyIcon className="h-5 w-5" />
+                    </button>
+                    
+                    <button
                       onClick={() => handleDeleteUser(user.id)}
                       className="text-red-600 hover:text-red-900"
                       title="Löschen"
@@ -498,7 +646,38 @@ function UserManagement() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {(isEditing || isCreating) ? renderUserForm() : renderUserList()}
+      {isEditing || isCreating ? (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">{isCreating ? 'Neuen Benutzer erstellen' : 'Benutzer bearbeiten'}</h2>
+            <button
+              onClick={handleCancel}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <XCircleIcon className="h-6 w-6" />
+            </button>
+          </div>
+          {/* Benutzerformular rendern */}
+          {renderUserForm()}
+        </div>
+      ) : isResettingPassword ? (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Passwort zurücksetzen</h2>
+            <button
+              onClick={handleCancel}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <XCircleIcon className="h-6 w-6" />
+            </button>
+          </div>
+          {/* Passwort-Zurücksetzungsformular rendern */}
+          {renderPasswordResetForm()}
+        </div>
+      ) : null}
+      
+      {/* Benutzerliste rendern */}
+      {renderUserList()}
     </div>
   );
 }

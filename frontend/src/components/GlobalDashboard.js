@@ -12,8 +12,8 @@ import {
   WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 
-function GlobalDashboard() {
-  // Dummy Daten für das Dashboard
+function GlobalDashboard({ data, user }) {
+  // State für die Dashboard-Daten, die automatisch mit den übergebenen Daten oder Dummy-Daten befüllt werden
   const [dashboardData, setDashboardData] = useState({
     bookingCount: 47,
     activeBookings: 12,
@@ -55,11 +55,93 @@ function GlobalDashboard() {
     ]
   });
 
-  // Effekt zum Laden echter Daten (momentan deaktiviert, verwendet Dummy-Daten)
+  // Effekt zum Verarbeiten der übergebenen Daten
   useEffect(() => {
-    // Hier später die tatsächlichen API-Aufrufe implementieren, wenn die Funktionalität fertig ist
-    // Jetzt verwenden wir die Dummy-Daten aus dem State
-  }, []);
+    if (data) {
+      const processedData = {...dashboardData};
+      
+      // Verarbeitung der übergebenen Daten und Aktualisierung des States
+      if (data.vehicles && Array.isArray(data.vehicles)) {
+        processedData.vehicleCount = data.vehicles.length;
+        processedData.availableVehicles = data.vehicles.filter(v => v.status === 'Verfügbar').length;
+        
+        // Fahrzeugauslastung berechnen, falls Daten vorhanden
+        if (data.bookings && Array.isArray(data.bookings)) {
+          const vehicleUsage = data.vehicles.map(vehicle => {
+            const bookingsForVehicle = data.bookings.filter(b => b.vehicleId === vehicle.id);
+            const usagePercentage = Math.min(
+              Math.round((bookingsForVehicle.length / Math.max(1, data.bookings.length)) * 100),
+              100
+            );
+            return {
+              vehicle: vehicle.model || vehicle.marke || 'Unbekannt',
+              usage: usagePercentage
+            };
+          });
+          
+          // Sortieren nach Auslastung (absteigend) und auf 5 Einträge begrenzen
+          processedData.vehicleUsage = vehicleUsage
+            .sort((a, b) => b.usage - a.usage)
+            .slice(0, 5);
+        }
+      }
+      
+      if (data.bookings && Array.isArray(data.bookings)) {
+        processedData.bookingCount = data.bookings.length;
+        processedData.activeBookings = data.bookings.filter(b => 
+          b.status === 'akzeptiert' || b.status === 'angefragt'
+        ).length;
+        
+        // Neueste Buchungen filtern und sortieren
+        processedData.recentBookings = data.bookings
+          .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+          .slice(0, 5);
+          
+        // Berechnung der Buchungen pro Tag
+        const now = new Date();
+        const daysOfWeek = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+        const bookingsPerDay = Array(7).fill(0).map((_, index) => {
+          const day = new Date();
+          day.setDate(now.getDate() - now.getDay() + index);
+          
+          const count = data.bookings.filter(booking => {
+            const bookingDate = new Date(booking.startTime);
+            return (
+              bookingDate.getDate() === day.getDate() &&
+              bookingDate.getMonth() === day.getMonth() &&
+              bookingDate.getFullYear() === day.getFullYear()
+            );
+          }).length;
+          
+          return { day: daysOfWeek[index], count };
+        });
+        
+        processedData.bookingsPerDay = bookingsPerDay;
+      }
+      
+      if (data.users && Array.isArray(data.users)) {
+        processedData.userCount = data.users.length;
+      }
+      
+      if (data.maintenanceRecords && Array.isArray(data.maintenanceRecords)) {
+        processedData.maintenanceCount = data.maintenanceRecords.length;
+        
+        // Anstehende Wartungen sortieren
+        processedData.upcomingMaintenance = data.maintenanceRecords
+          .filter(m => new Date(m.date) > new Date())
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .slice(0, 5);
+      }
+      
+      if (data.statistics && typeof data.statistics === 'object') {
+        if (data.statistics.totalDistance) {
+          processedData.totalDistance = data.statistics.totalDistance;
+        }
+      }
+      
+      setDashboardData(processedData);
+    }
+  }, [data]);
 
   // Hilfsfunktion zur Formatierung von Datum/Zeit
   const formatDateTime = (dateTimeString) => {
@@ -82,6 +164,8 @@ function GlobalDashboard() {
         return 'bg-yellow-100 text-yellow-800';
       case 'abgelehnt':
         return 'bg-red-100 text-red-800';
+      case 'abgeschlossen':
+        return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -93,7 +177,10 @@ function GlobalDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
+          <p className="text-sm text-gray-500">Willkommen, {user ? user.name : 'Administrator'}</p>
+        </div>
         <div className="text-sm text-gray-500">
           Letztes Update: {new Date().toLocaleDateString('de-DE')} {new Date().toLocaleTimeString('de-DE')}
         </div>
@@ -157,7 +244,7 @@ function GlobalDashboard() {
                 <div key={idx} className="flex flex-col items-center w-full">
                   <div 
                     className="w-12 bg-blue-500 rounded-t transition-all duration-300 hover:bg-blue-600"
-                    style={{ height: `${(day.count / maxBookingCount) * 100}%` }}
+                    style={{ height: `${maxBookingCount > 0 ? (day.count / maxBookingCount) * 100 : 0}%` }}
                   ></div>
                   <div className="mt-2 text-xs text-gray-500">{day.day}</div>
                 </div>
@@ -216,8 +303,8 @@ function GlobalDashboard() {
               <tbody className="divide-y divide-gray-200">
                 {dashboardData.recentBookings.map(booking => (
                   <tr key={booking.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">{booking.user}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">{booking.vehicle}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">{booking.userName || booking.user}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">{booking.vehicleName || booking.vehicle}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       {formatDateTime(booking.startTime)}
                     </td>
@@ -232,7 +319,10 @@ function GlobalDashboard() {
             </table>
           </div>
           <div className="mt-4 text-right">
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+            <button 
+              onClick={() => alert('Funktion noch nicht implementiert')}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
               Alle anzeigen →
             </button>
           </div>
@@ -241,28 +331,69 @@ function GlobalDashboard() {
         {/* Anstehende Wartungen */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Anstehende Wartungen</h3>
-          <div className="space-y-4">
-            {dashboardData.upcomingMaintenance.map(maintenance => (
-              <div key={maintenance.id} className="flex items-start p-3 border rounded hover:bg-gray-50">
-                <div className="flex-shrink-0 mr-4">
-                  <WrenchScrewdriverIcon className="h-5 w-5 text-orange-500" />
+          {dashboardData.upcomingMaintenance.length > 0 ? (
+            <div className="space-y-4">
+              {dashboardData.upcomingMaintenance.map(maintenance => (
+                <div key={maintenance.id} className="flex items-start p-3 border rounded hover:bg-gray-50">
+                  <div className="flex-shrink-0 mr-4">
+                    <WrenchScrewdriverIcon className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">{maintenance.vehicleName || maintenance.vehicle}</p>
+                    <p className="text-sm text-gray-500">{maintenance.type}</p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(maintenance.date).toLocaleDateString('de-DE')}
+                    </p>
+                  </div>
+                  <div>
+                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                      Details
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium">{maintenance.vehicle}</p>
-                  <p className="text-sm text-gray-500">{maintenance.type}</p>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {maintenance.date}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>Keine anstehenden Wartungen</p>
+            </div>
+          )}
           <div className="mt-4 text-right">
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-              Alle anzeigen →
+            <button
+              onClick={() => alert('Funktion noch nicht implementiert')}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Wartungsplan →
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Admin Action Buttons */}
+      <div className="flex flex-wrap justify-end gap-4 mt-6">
+        <button
+          onClick={() => alert('Funktion noch nicht implementiert')}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center"
+        >
+          <CalendarIcon className="h-5 w-5 mr-2" />
+          Buchungen verwalten
+        </button>
+        
+        <button
+          onClick={() => alert('Funktion noch nicht implementiert')}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md flex items-center"
+        >
+          <TruckIcon className="h-5 w-5 mr-2" />
+          Fahrzeug hinzufügen
+        </button>
+        
+        <button
+          onClick={() => alert('Funktion noch nicht implementiert')}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center"
+        >
+          <UserIcon className="h-5 w-5 mr-2" />
+          Benutzer verwalten
+        </button>
       </div>
     </div>
   );

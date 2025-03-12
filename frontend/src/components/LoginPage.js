@@ -17,6 +17,7 @@ function LoginPage({ onLogin, onRegister }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginMessage, setLoginMessage] = useState('');
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
 
   // Beim ersten Laden der Komponente prüfen, ob die Standardbenutzer existieren
   useEffect(() => {
@@ -174,6 +175,25 @@ function LoginPage({ onLogin, onRegister }) {
     }
   };
 
+  // Handler für "Passwort vergessen"
+  const handleForgotPassword = () => {
+    if (!formData.email) {
+      setError('Bitte geben Sie Ihre E-Mail-Adresse ein.');
+      return;
+    }
+    
+    setForgotPasswordEmail(formData.email);
+    
+    // Status speichern, dass für diese E-Mail das Passwort zurückgesetzt werden soll
+    localStorage.setItem('passwordReset', formData.email);
+    
+    // Hinweis anzeigen
+    alert(`Passwort-Zurücksetzung für ${formData.email} wurde initiiert. Bitte melden Sie sich beim Administrator.`);
+    
+    // Optional: E-Mail-Feld zurücksetzen
+    setFormData({ ...formData, password: '' });
+  };
+
   // Render Login-Formular
   const renderLoginForm = () => (
     <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
@@ -248,23 +268,37 @@ function LoginPage({ onLogin, onRegister }) {
             </label>
           </div>
           
-          <div className="text-sm">
-            <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-              Passwort vergessen?
-            </a>
-          </div>
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            className="text-sm font-medium text-blue-600 hover:text-blue-500"
+          >
+            Passwort vergessen?
+          </button>
         </div>
         
         <div>
           <button
             type="submit"
             disabled={loading}
-            className="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300"
+            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+              loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
           >
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-              <LockClosedIcon className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
-            </span>
-            {loading ? 'Wird angemeldet...' : 'Anmelden'}
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Wird angemeldet...
+              </>
+            ) : (
+              <>
+                <LockClosedIcon className="h-5 w-5 mr-2" />
+                Anmelden
+              </>
+            )}
           </button>
         </div>
       </form>

@@ -3,9 +3,8 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import LoginPage from './components/LoginPage';
 import VehicleList from './components/VehicleList';
-import GlobalDashboard from './components/GlobalDashboard';
+import Dashboard from './components/Dashboard';
 import StatisticsDashboard from './components/StatisticsDashboard';
-import UserDashboard from './components/UserDashboard';
 import VehicleRequests from './components/VehicleRequests';
 import UserRequests from './components/UserRequests';
 import UserManagement from './components/UserManagement';
@@ -90,6 +89,12 @@ function App() {
         canManageVehicles: userData.isAdmin || false,
         canApproveRequests: userData.isAdmin || false
       });
+      
+      // Wenn der Benutzer ein Admin ist und Passwort-Zurücksetzungsanfragen vorliegen,
+      // setze die aktive Ansicht auf die Benutzerverwaltung
+      if (userData.isAdmin && localStorage.getItem('passwordReset')) {
+        setActiveView('user-management');
+      }
     }
   }, []);
   
@@ -457,7 +462,7 @@ function App() {
 
     switch (activeView) {
       case 'dashboard':
-        return isAdmin ? <GlobalDashboard /> : <UserDashboard />;
+        return <Dashboard user={user} isAdmin={isAdmin} />;
       case 'vehicles':
         return <VehicleList 
           isUserView={!isAdmin} 
