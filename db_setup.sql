@@ -29,7 +29,7 @@ END;
 -- Tabelle für Fahrzeuge
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'vehicles')
 BEGIN
-    CREATE TABLE vehicles (
+    CREATE TABLE Autos (
         id INT IDENTITY(1,1) PRIMARY KEY,
         license_plate NVARCHAR(20) NOT NULL UNIQUE,
         model NVARCHAR(100) NOT NULL,
