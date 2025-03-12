@@ -18,7 +18,7 @@ function GlobalDashboard({ data, user }) {
     bookingCount: 47,
     activeBookings: 12,
     vehicleCount: 18,
-    availableVehicles: 11,
+    availableVehicles: 6,
     maintenanceCount: 5,
     userCount: 32,
     totalDistance: 57842,
@@ -63,16 +63,69 @@ function GlobalDashboard({ data, user }) {
       // Verarbeitung der übergebenen Daten und Aktualisierung des States
       if (data.vehicles && Array.isArray(data.vehicles)) {
         processedData.vehicleCount = data.vehicles.length;
-        processedData.availableVehicles = data.vehicles.filter(v => v.status === 'Verfügbar').length;
+        
+        // Korrigierte Logik: Ein Fahrzeug ist verfügbar, wenn es keine aktive Buchung hat
+        // oder wenn es explizit als 'Verfügbar' markiert ist
+        if (data.bookings && Array.isArray(data.bookings)) {
+          // Aktive Buchungen filtern (akzeptiert oder angefragt)
+          const activeBookings = data.bookings.filter(booking => 
+            booking.status === 'akzeptiert' || booking.status === 'angefragt'
+          );
+          
+          processedData.activeBookings = activeBookings.length;
+          
+          // IDs der Fahrzeuge in aktiven Buchungen
+          const bookedVehicleIds = activeBookings.map(booking => booking.vehicleId);
+          
+          // Fahrzeuge sind verfügbar, wenn ihre ID nicht in den gebuchten Fahrzeugen ist
+          // oder wenn sie explizit als 'Verfügbar' markiert sind
+          const availableVehiclesCount = data.vehicles.filter(vehicle => 
+            !bookedVehicleIds.includes(vehicle.id) && 
+            (vehicle.status === 'Verfügbar' || vehicle.status === 'verfügbar' || !vehicle.status)
+          ).length;
+          
+          processedData.availableVehicles = activeBookings.length === 0 
+            ? data.vehicles.length 
+            : availableVehiclesCount;
+        } else {
+          // Wenn keine Buchungsdaten vorhanden sind, gehen wir davon aus, dass alle Fahrzeuge verfügbar sind
+          processedData.availableVehicles = data.vehicles.length;
+        }
         
         // Fahrzeugauslastung berechnen, falls Daten vorhanden
         if (data.bookings && Array.isArray(data.bookings)) {
           const vehicleUsage = data.vehicles.map(vehicle => {
+            // Finde alle Buchungen für dieses Fahrzeug
             const bookingsForVehicle = data.bookings.filter(b => b.vehicleId === vehicle.id);
-            const usagePercentage = Math.min(
-              Math.round((bookingsForVehicle.length / Math.max(1, data.bookings.length)) * 100),
-              100
-            );
+            
+            // Berechne Auslastung basierend auf der Anzahl der Buchungen
+            // im Verhältnis zu allen Buchungen oder direkt als Prozentsatz der Nutzungszeit
+            let usagePercentage = 0;
+            
+            if (bookingsForVehicle.length > 0) {
+              // Auslastung basierend auf der Zeit, die das Fahrzeug gebucht war
+              let totalHoursBooked = 0;
+              const currentDate = new Date();
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(currentDate.getDate() - 30);
+              const totalHoursInMonth = 30 * 24; // 30 Tage * 24 Stunden
+              
+              bookingsForVehicle.forEach(booking => {
+                const startTime = new Date(booking.startTime);
+                const endTime = new Date(booking.endTime);
+                
+                // Nur Buchungen der letzten 30 Tage berücksichtigen
+                if (endTime >= thirtyDaysAgo) {
+                  // Stundendifferenz zwischen Start und Ende berechnen
+                  const hoursDiff = (endTime - startTime) / (1000 * 60 * 60);
+                  totalHoursBooked += hoursDiff;
+                }
+              });
+              
+              // Auslastung = gebuchte Stunden / Gesamtstunden im Monat
+              usagePercentage = Math.min(Math.round((totalHoursBooked / totalHoursInMonth) * 100), 100);
+            }
+            
             return {
               vehicle: vehicle.model || vehicle.marke || 'Unbekannt',
               usage: usagePercentage

@@ -167,14 +167,28 @@ function VehicleRequests({ user }) {
 
   // Hilfsfunktion zur Formatierung von Datum/Zeit
   const formatDateTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('de-DE', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateTimeString) return 'Datum nicht verfügbar';
+    
+    try {
+      const date = new Date(dateTimeString);
+      
+      // Überprüfe, ob das Datum gültig ist
+      if (isNaN(date.getTime())) {
+        console.error('Ungültiges Datum:', dateTimeString);
+        return 'Ungültiges Datum';
+      }
+      
+      return date.toLocaleString('de-DE', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Fehler bei der Datums-Formatierung:', error);
+      return 'Ungültiges Datum';
+    }
   };
 
   // Hilfsfunktion für die Anzeige des Status mit entsprechender Farbe

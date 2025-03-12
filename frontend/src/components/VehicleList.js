@@ -219,8 +219,8 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
       vehicleId: vehicleToRequest.id,
       vehicleModel: vehicleToRequest.modell,
       licensePlate: vehicleToRequest.kennzeichen,
-      startDate: requestDetails.startDate,
-      endDate: requestDetails.endDate,
+      startDate: requestDetails.startDate,  // Da hier keine Umwandlung erfolgt, muss das Datum bereits im ISO-Format sein
+      endDate: requestDetails.endDate,      // Da hier keine Umwandlung erfolgt, muss das Datum bereits im ISO-Format sein
       startDateTime: `${requestDetails.startDate}T08:00:00`,
       endDateTime: `${requestDetails.endDate}T17:00:00`,
       purpose: requestDetails.purpose,
@@ -574,8 +574,8 @@ function VehicleList({ isUserView = false, vehicles = [], onAddVehicle, onUpdate
                     vehicleId: vehicleToRequest.id,
                     vehicleModel: vehicleToRequest.modell,
                     licensePlate: vehicleToRequest.kennzeichen,
-                    startDate: bookingData.pickupDate,
-                    endDate: bookingData.returnDate,
+                    startDate: bookingData.startDateTime.split('T')[0], // ISO-Format für Datum
+                    endDate: bookingData.endDateTime.split('T')[0],     // ISO-Format für Datum
                     startDateTime: bookingData.startDateTime,
                     endDateTime: bookingData.endDateTime,
                     purpose: bookingData.purpose,

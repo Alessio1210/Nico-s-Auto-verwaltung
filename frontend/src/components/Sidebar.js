@@ -60,6 +60,11 @@ function Sidebar({ isOpen, toggleSidebar, isAdmin, onLogout, activeView, setActi
       items.push({ id: 'my-requests', name: 'Meine Anfragen', icon: 'InboxIcon', show: !isAdmin });
     }
 
+    // Admin-Kalenderverwaltung nur für Admins
+    if (isAdmin) {
+      items.push({ id: 'admin-calendar', name: 'Kalenderübersicht', icon: 'CalendarIcon', show: true });
+    }
+
     // Benutzerverwaltung nur für Admins
     if (isAdmin) {
       items.push({ id: 'user-management', name: 'Benutzerverwaltung', icon: 'UsersIcon', show: true });

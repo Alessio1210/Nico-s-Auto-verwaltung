@@ -17,11 +17,125 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
   const [conflicts, setConflicts] = useState([]);
   const [validated, setValidated] = useState(false);
 
+  // Hilfsfunktion zum Formatieren des Datums während der Eingabe
+  const formatDateInput = (input) => {
+    // Entferne alle nicht-numerischen Zeichen außer Punkt
+    let cleaned = input.replace(/[^\d.]/g, '');
+    
+    // Erlaube höchstens 2 Punkte
+    const dots = cleaned.split('.').length - 1;
+    if (dots > 2) {
+      cleaned = cleaned.substring(0, cleaned.lastIndexOf('.'));
+    }
+    
+    // Automatische Formatierung: füge Punkte ein, wenn nötig
+    if (cleaned.length > 0) {
+      // Erstes Segment (Tag)
+      if (cleaned.length >= 2 && !cleaned.includes('.')) {
+        cleaned = cleaned.substring(0, 2) + '.' + cleaned.substring(2);
+      }
+      // Zweites Segment (Monat)
+      if (cleaned.length >= 5 && cleaned.split('.').length === 2) {
+        const parts = cleaned.split('.');
+        if (parts[1].length >= 2) {
+          cleaned = parts[0] + '.' + parts[1].substring(0, 2) + '.' + parts[1].substring(2);
+        }
+      }
+    }
+    
+    return cleaned;
+  };
+
+  // Hilfsfunktion zum Formatieren der Zeit während der Eingabe
+  const formatTimeInput = (input) => {
+    // Entferne alle nicht-numerischen Zeichen außer Doppelpunkt
+    let cleaned = input.replace(/[^\d:]/g, '');
+    
+    // Erlaube höchstens 1 Doppelpunkt
+    const colons = cleaned.split(':').length - 1;
+    if (colons > 1) {
+      cleaned = cleaned.substring(0, cleaned.lastIndexOf(':'));
+    }
+    
+    // Automatische Formatierung: füge Doppelpunkt ein, wenn nötig
+    if (cleaned.length > 0) {
+      // Erstes Segment (Stunden)
+      if (cleaned.length >= 2 && !cleaned.includes(':')) {
+        cleaned = cleaned.substring(0, 2) + ':' + cleaned.substring(2);
+      }
+      
+      // Begrenze Minuten auf 2 Ziffern
+      if (cleaned.includes(':')) {
+        const parts = cleaned.split(':');
+        if (parts[1].length > 2) {
+          cleaned = parts[0] + ':' + parts[1].substring(0, 2);
+        }
+      }
+    }
+    
+    return cleaned;
+  };
+
+  // Hilfsfunktion zur Validierung der Zeitwerte
+  const isValidTime = (timeString) => {
+    if (!timeString || !timeString.includes(':')) return false;
+    
+    const parts = timeString.split(':');
+    if (parts.length !== 2) return false;
+    
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    
+    return !isNaN(hours) && !isNaN(minutes) && 
+           hours >= 0 && hours <= 23 && 
+           minutes >= 0 && minutes <= 59;
+  };
+
+  // Hilfsfunktion zur Umwandlung von TT.MM.JJJJ in ein Date-Objekt
+  const parseGermanDate = (dateString) => {
+    if (!dateString || !dateString.includes('.')) return null;
+    
+    const parts = dateString.split('.');
+    if (parts.length !== 3) return null;
+    
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Monate sind 0-indexiert
+    const year = parseInt(parts[2], 10);
+    
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    if (year < 1000 || year > 9999) return null; // Jahr muss 4-stellig sein
+    
+    const date = new Date(year, month, day);
+    
+    // Überprüfe, ob das erstellte Datum gültig ist
+    if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
+      return null; // Ungültiges Datum (z.B. 31.02.2025)
+    }
+    
+    return date;
+  };
+
+  // Hilfsfunktion zur Umwandlung von Date in TT.MM.JJJJ
+  const formatDateToGerman = (date) => {
+    if (!date) return '';
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}.${month}.${year}`;
+  };
+
   // Aktuelles Datum berechnen (für min-Werte in den Datumsfeldern)
   const today = new Date().toISOString().split('T')[0];
+  const todayGerman = formatDateToGerman(new Date());
 
   // Refs für Fokusbewahrung
   const inputRefs = {
+    pickupDate: useRef(null),
+    pickupTime: useRef(null),
+    returnDate: useRef(null),
+    returnTime: useRef(null),
     purpose: useRef(null),
     destination: useRef(null),
     passengers: useRef(null),
@@ -30,32 +144,49 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
 
   // Aktuelle Feldnamen, die bearbeitet werden
   const [activeField, setActiveField] = useState(null);
+  // Position des Cursors
+  const [selectionInfo, setSelectionInfo] = useState({ start: 0, end: 0 });
 
   // Fokuswiederherstellung nach Rendering
   useEffect(() => {
     if (activeField && inputRefs[activeField] && inputRefs[activeField].current) {
       const input = inputRefs[activeField].current;
-      const length = input.value.length;
       
-      // Setze den Cursor an die Stelle, an der er war
-      requestAnimationFrame(() => {
+      // Unmittelbar den Fokus wiederherstellen (ohne requestAnimationFrame)
+      try {
         input.focus();
-        try {
-          // Wenn möglich, setze den Cursor ans Ende des Texts
-          input.setSelectionRange(length, length);
-        } catch (e) {
-          // Einige Input-Typen unterstützen setSelectionRange nicht
-          console.log("Konnte Cursor-Position nicht setzen");
+        
+        // Bei Text/Number-Inputs: versuche Cursor-Position wiederherzustellen
+        if (input.type === 'text' || input.type === 'number') {
+          try {
+            input.setSelectionRange(selectionInfo.start, selectionInfo.end);
+          } catch (e) {
+            console.log("Konnte Cursor-Position nicht setzen");
+          }
         }
-      });
+      } catch (e) {
+        console.error("Fokussierung fehlgeschlagen:", e);
+      }
     }
-  }, [bookingData, activeField]);
+  }, [activeField, selectionInfo]);
+
+  // Handler für speziell für den Fokus bei date/time Inputs
+  const handleFocus = (e) => {
+    const { name } = e.target;
+    setActiveField(name);
+  };
 
   // Validierung für den aktuellen Schritt
   const validateStep = () => {
     switch (formStep) {
       case 1:
-        return bookingData.pickupDate && bookingData.returnDate;
+        // Validiere Datum im Format TT.MM.JJJJ
+        const pickupDateValid = !!parseGermanDate(bookingData.pickupDate);
+        const returnDateValid = !!parseGermanDate(bookingData.returnDate);
+        // Validiere Zeit im Format HH:MM
+        const pickupTimeValid = isValidTime(bookingData.pickupTime);
+        const returnTimeValid = isValidTime(bookingData.returnTime);
+        return pickupDateValid && returnDateValid && pickupTimeValid && returnTimeValid;
       case 2:
         return bookingData.purpose && bookingData.destination;
       case 3:
@@ -70,69 +201,204 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
     setValidated(validateStep());
   }, [formStep]);
 
-  // Prüfe Verfügbarkeit, wenn sich die Daten ändern
-  useEffect(() => {
-    if (bookingData.pickupDate && bookingData.returnDate && checkAvailability) {
-      const startDateTime = `${bookingData.pickupDate}T${bookingData.pickupTime}`;
-      const endDateTime = `${bookingData.returnDate}T${bookingData.returnTime}`;
-      
-      // Prüfe Verfügbarkeit mit der übergebenen Funktion
-      const { isAvailable, conflicts } = checkAvailability(
-        vehicle.id,
-        startDateTime,
-        endDateTime
-      );
-      
-      if (!isAvailable) {
-        setConflicts(conflicts);
-      } else {
-        setConflicts([]);
-      }
-    }
-  }, [bookingData.pickupDate, bookingData.pickupTime, bookingData.returnDate, bookingData.returnTime, vehicle.id, checkAvailability]);
-
   // Handler für Änderungen an Formularfeldern
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, selectionStart, selectionEnd } = e.target;
+    
+    // Speichere Cursor-Position für Text-Inputs
+    if (e.target.type === 'text' || e.target.type === 'number') {
+      setSelectionInfo({
+        start: selectionStart || 0,
+        end: selectionEnd || 0
+      });
+    }
     
     // Markiere das aktive Feld für Fokusbewahrung
     setActiveField(name);
     
-    // Spezielle Validierung für Datumsfelder
-    if (name === 'startDate') {
-      // Wenn Startdatum geändert wird, stelle sicher, dass es nicht in der Vergangenheit liegt
-      const selectedDate = new Date(value);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Setze auf Beginn des Tages für korrekten Vergleich
+    let newValue = value;
+    
+    // Spezielles Handling für Datumsfelder mit Formatierung
+    if (name === 'pickupDate' || name === 'returnDate') {
+      newValue = formatDateInput(value);
       
-      if (selectedDate < today) {
-        alert('Termine in der Vergangenheit können nicht gebucht werden.');
-        return; // Verhindere die Änderung
+      // Berechne die neue Cursor-Position nach der Formatierung
+      const addedChars = newValue.length - value.length;
+      if (addedChars > 0 && selectionStart) {
+        setSelectionInfo({
+          start: selectionStart + addedChars,
+          end: selectionEnd + addedChars
+        });
       }
       
-      // Setze auch Enddatum, wenn es leer ist oder vor dem neuen Startdatum liegt
-      if (!bookingData.endDate || new Date(bookingData.endDate) < selectedDate) {
-        setBookingData({
-          ...bookingData,
-          [name]: value,
-          endDate: value // Setze Enddatum auf gleiches Datum
+      // Spezielle Behandlung für Abholdatum: setze auch Rückgabedatum
+      if (name === 'pickupDate') {
+        const pickupDate = parseGermanDate(newValue);
+        const returnDate = parseGermanDate(bookingData.returnDate);
+        
+        if (pickupDate && (!returnDate || pickupDate > returnDate)) {
+          setBookingData(prevData => ({
+            ...prevData,
+            [name]: newValue,
+            returnDate: newValue  // Setze Rückgabedatum auf gleiches Datum
+          }));
+          return;
+        }
+      }
+    }
+    // Spezielles Handling für Zeitfelder mit Formatierung
+    else if (name === 'pickupTime' || name === 'returnTime') {
+      newValue = formatTimeInput(value);
+      
+      // Berechne die neue Cursor-Position nach der Formatierung
+      const addedChars = newValue.length - value.length;
+      if (addedChars > 0 && selectionStart) {
+        setSelectionInfo({
+          start: selectionStart + addedChars,
+          end: selectionEnd + addedChars
         });
-        return;
       }
     }
     
-    // Aktualisiere State
+    // Aktualisiere State ohne unnötige Re-Renderings
     setBookingData(prevData => ({
       ...prevData,
-      [name]: value
+      [name]: newValue
     }));
     
-    // Führe die Validierung direkt hier durch
-    setValidated(validateStep());
+    // Führe die Validierung direkt hier durch, aber nur für relevante Felder
+    if (
+      (formStep === 1 && (name === 'pickupDate' || name === 'returnDate' || name === 'pickupTime' || name === 'returnTime')) ||
+      (formStep === 2 && (name === 'purpose' || name === 'destination'))
+    ) {
+      setValidated(validateStep());
+    }
+  };
+
+  // Handler für onBlur - prüft nur die Formatierung, aber nicht die Verfügbarkeit
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Prüfe Datumseingaben
+    if (name === 'pickupDate' || name === 'returnDate') {
+      // Überprüfe, ob das Datum vollständig ist
+      const parts = value.split('.');
+      
+      // Nur validieren, wenn vollständiges Datum eingegeben wurde
+      if (parts.length === 3 && parts[2].length === 4) {
+        // Prüfe, ob das Datum gültig ist
+        const date = parseGermanDate(value);
+        if (!date) {
+          alert(`Bitte geben Sie ein gültiges Datum im Format TT.MM.JJJJ ein.`);
+          return;
+        }
+      }
+    }
+    // Prüfe Zeiteingaben
+    else if (name === 'pickupTime' || name === 'returnTime') {
+      if (!isValidTime(value)) {
+        alert(`Bitte geben Sie eine gültige Zeit im Format HH:MM ein.`);
+        return;
+      }
+    }
+  };
+
+  // Prüfe Verfügbarkeit und setze Konflikte
+  const checkAvailabilityAndSetConflicts = () => {
+    // Nur prüfen, wenn beide Datums- und Zeitfelder ausgefüllt sind
+    if (
+      bookingData.pickupDate && isValidTime(bookingData.pickupTime) &&
+      bookingData.returnDate && isValidTime(bookingData.returnTime) &&
+      checkAvailability
+    ) {
+      const pickupDate = parseGermanDate(bookingData.pickupDate);
+      const returnDate = parseGermanDate(bookingData.returnDate);
+      
+      if (pickupDate && returnDate) {
+        // Formatiere zu ISO-Format für API-Anfragen
+        const isoPickupDate = pickupDate.toISOString().split('T')[0];
+        const isoReturnDate = returnDate.toISOString().split('T')[0];
+        
+        const startDateTime = `${isoPickupDate}T${bookingData.pickupTime}`;
+        const endDateTime = `${isoReturnDate}T${bookingData.returnTime}`;
+        
+        // Prüfe Verfügbarkeit mit der übergebenen Funktion
+        const { isAvailable, conflicts } = checkAvailability(
+          vehicle.id,
+          startDateTime,
+          endDateTime
+        );
+        
+        if (!isAvailable) {
+          // Entferne Benutzernamen aus den Konflikten
+          const anonymizedConflicts = conflicts.map(conflict => ({
+            ...conflict,
+            userName: undefined // Entferne den Benutzernamen
+          }));
+          setConflicts(anonymizedConflicts);
+          return false;
+        } else {
+          setConflicts([]);
+          return true;
+        }
+      }
+    }
+    return true; // Wenn keine Prüfung möglich ist, gilt es als verfügbar
   };
 
   // Zum nächsten Schritt gehen
   const goToNextStep = () => {
+    // Führe Datumsvalidierung hier durch, bevor wir zum nächsten Schritt gehen
+    if (formStep === 1) {
+      // Prüfe, ob die Daten gültig sind
+      const pickupDate = parseGermanDate(bookingData.pickupDate);
+      const returnDate = parseGermanDate(bookingData.returnDate);
+      
+      if (!pickupDate || !returnDate) {
+        alert('Bitte geben Sie gültige Datumswerte im Format TT.MM.JJJJ ein.');
+        return;
+      }
+      
+      // Prüfe Zeitwerte
+      if (!isValidTime(bookingData.pickupTime) || !isValidTime(bookingData.returnTime)) {
+        alert('Bitte geben Sie gültige Zeitwerte im Format HH:MM ein.');
+        return;
+      }
+      
+      // Prüfe, ob das Abholdatum in der Vergangenheit liegt
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Setze auf Beginn des Tages für korrekten Vergleich
+      
+      if (pickupDate < today) {
+        alert('Termine in der Vergangenheit können nicht gebucht werden.');
+        return; // Verhindere das Weitergehen
+      }
+      
+      // Prüfe, ob das Rückgabedatum vor dem Abholdatum liegt
+      if (returnDate < pickupDate) {
+        alert('Das Rückgabedatum kann nicht vor dem Abholdatum liegen.');
+        return;
+      }
+      
+      // Prüfe, ob das Rückgabedatum gleich dem Abholdatum ist und die Rückgabezeit vor der Abholzeit liegt
+      if (
+        returnDate.getTime() === pickupDate.getTime() && 
+        bookingData.returnTime < bookingData.pickupTime
+      ) {
+        alert('Die Rückgabezeit kann nicht vor der Abholzeit am selben Tag liegen.');
+        return;
+      }
+      
+      // Prüfe auf Konflikte mit anderen Buchungen
+      const isAvailable = checkAvailabilityAndSetConflicts();
+      if (!isAvailable) {
+        if (conflicts.length > 0) {
+          alert('Das Fahrzeug ist im gewählten Zeitraum bereits gebucht. Bitte wählen Sie einen anderen Zeitraum.');
+          return;
+        }
+      }
+    }
+    
     if (formStep < totalSteps && validateStep()) {
       setFormStep(formStep + 1);
     }
@@ -149,12 +415,38 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Konvertiere das deutsche Datumsformat zu ISO für die API
+    const pickupDate = parseGermanDate(bookingData.pickupDate);
+    const returnDate = parseGermanDate(bookingData.returnDate);
+    
+    if (!pickupDate || !returnDate) {
+      alert('Bitte geben Sie gültige Datumswerte ein.');
+      return;
+    }
+    
+    if (!isValidTime(bookingData.pickupTime) || !isValidTime(bookingData.returnTime)) {
+      alert('Bitte geben Sie gültige Zeitwerte ein.');
+      return;
+    }
+    
+    // Prüfe nochmals auf Konflikte, bevor die Anfrage abgesendet wird
+    const isAvailable = checkAvailabilityAndSetConflicts();
+    if (!isAvailable) {
+      if (conflicts.length > 0) {
+        alert('Das Fahrzeug ist im gewählten Zeitraum bereits gebucht. Bitte wählen Sie einen anderen Zeitraum.');
+        return;
+      }
+    }
+    
+    const isoPickupDate = pickupDate.toISOString().split('T')[0];
+    const isoReturnDate = returnDate.toISOString().split('T')[0];
+    
     const fullBookingData = {
       ...bookingData,
       vehicleId: vehicle.id,
       vehicleName: `${vehicle.modell} (${vehicle.kennzeichen})`,
-      startDateTime: `${bookingData.pickupDate}T${bookingData.pickupTime}`,
-      endDateTime: `${bookingData.returnDate}T${bookingData.returnTime}`
+      startDateTime: `${isoPickupDate}T${bookingData.pickupTime}`,
+      endDateTime: `${isoReturnDate}T${bookingData.returnTime}`
     };
     
     onSubmit(fullBookingData);
@@ -197,25 +489,32 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
                 <CalendarIcon className="w-5 h-5 text-gray-500" />
               </div>
               <input
-                type="date"
+                type="text"
                 name="pickupDate"
-                min={today}
+                placeholder="TT.MM.JJJJ"
                 value={bookingData.pickupDate}
                 onChange={handleChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                ref={inputRefs.pickupDate}
                 className="block w-full pl-10 pr-2 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
-            <div className="relative ml-2 w-24">
+            <div className="relative ml-2 w-32">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <ClockIcon className="w-5 h-5 text-gray-500" />
               </div>
               <input
-                type="time"
+                type="text"
                 name="pickupTime"
+                placeholder="HH:MM"
                 value={bookingData.pickupTime}
                 onChange={handleChange}
-                className="block w-full pl-10 pr-2 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                ref={inputRefs.pickupTime}
+                className="block w-full pl-10 pr-2 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-base"
                 required
               />
             </div>
@@ -232,58 +531,38 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
                 <CalendarIcon className="w-5 h-5 text-gray-500" />
               </div>
               <input
-                type="date"
+                type="text"
                 name="returnDate"
-                min={bookingData.pickupDate || today}
+                placeholder="TT.MM.JJJJ"
                 value={bookingData.returnDate}
                 onChange={handleChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                ref={inputRefs.returnDate}
                 className="block w-full pl-10 pr-2 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 required
               />
             </div>
-            <div className="relative ml-2 w-24">
+            <div className="relative ml-2 w-32">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <ClockIcon className="w-5 h-5 text-gray-500" />
               </div>
               <input
-                type="time"
+                type="text"
                 name="returnTime"
+                placeholder="HH:MM"
                 value={bookingData.returnTime}
                 onChange={handleChange}
-                className="block w-full pl-10 pr-2 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                ref={inputRefs.returnTime}
+                className="block w-full pl-10 pr-2 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-base"
                 required
               />
             </div>
           </div>
         </div>
       </div>
-
-      {conflicts.length > 0 && (
-        <div className="p-4 mt-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Überschneidungen mit bestehenden Buchungen
-              </h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <ul className="list-disc pl-5 space-y-1">
-                  {conflicts.map((conflict, idx) => (
-                    <li key={idx}>
-                      {new Date(conflict.startDateTime).toLocaleDateString()} - {new Date(conflict.endDateTime).toLocaleDateString()}
-                      {conflict.userName && ` (${conflict.userName})`}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -389,13 +668,13 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
             <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt className="text-sm font-medium text-gray-500">Abholdatum</dt>
               <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {new Date(bookingData.pickupDate).toLocaleDateString()} um {bookingData.pickupTime} Uhr
+                {bookingData.pickupDate} um {bookingData.pickupTime} Uhr
               </dd>
             </div>
             <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt className="text-sm font-medium text-gray-500">Rückgabedatum</dt>
               <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {new Date(bookingData.returnDate).toLocaleDateString()} um {bookingData.returnTime} Uhr
+                {bookingData.returnDate} um {bookingData.returnTime} Uhr
               </dd>
             </div>
             <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -427,26 +706,6 @@ function BookingForm({ vehicle, onSubmit, onCancel, checkAvailability }) {
           </dl>
         </div>
       </div>
-
-      {conflicts.length > 0 && (
-        <div className="p-4 mt-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-md">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Hinweis: Überschneidungen mit bestehenden Buchungen
-              </h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p>Diese Anfrage überschneidet sich mit bestehenden Buchungen. Sie können die Anfrage trotzdem absenden, aber sie muss vom Administrator genehmigt werden.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 

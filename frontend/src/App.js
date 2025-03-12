@@ -8,6 +8,7 @@ import StatisticsDashboard from './components/StatisticsDashboard';
 import VehicleRequests from './components/VehicleRequests';
 import UserRequests from './components/UserRequests';
 import UserManagement from './components/UserManagement';
+import AdminCalendar from './components/AdminCalendar';
 import axios from 'axios';
 
 // Backend-URL
@@ -161,8 +162,8 @@ function App() {
     const normalizeVehicleData = (vehicles) => {
       return vehicles.map(vehicle => ({
         ...vehicle,
-        // Immer auf "Verfügbar" setzen, unabhängig vom Status aus dem Backend
-        status: 'Verfügbar'
+        // Behalte den vorhandenen Status bei oder setze auf "Verfügbar", wenn keiner existiert
+        status: vehicle.status || 'Verfügbar'
       }));
     };
     
@@ -481,6 +482,8 @@ function App() {
         return userPermissions.canBookVehicles ? <UserRequests setActiveView={setActiveView} user={user} /> : null;
       case 'user-management':
         return isAdmin ? <UserManagement /> : null;
+      case 'admin-calendar':
+        return isAdmin ? <AdminCalendar vehicles={vehicles} /> : null;
       default:
         return <VehicleList 
           isUserView={!isAdmin} 
