@@ -7,12 +7,12 @@ class Config:
     # SQL Server Verbindung für lokale Entwicklung mit spezifischen Treiber-Optionen
     SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc:///?odbc_connect=' + ';'.join([
         'DRIVER={ODBC Driver 17 for SQL Server}',  # Aktuellerer Treiber
-        'SERVER=DESKTOP-QD39JFR\\SQLEXPRESS',
+        'SERVER=WKS258-1971DE\\SQLEXPRESS',
         'DATABASE=Fuhrpark',
-        'Trusted_Connection=yes',
-        'TrustServerCertificate=yes',
         'MARS_Connection=yes',
-        'MultipleActiveResultSets=True'
+        'MultipleActiveResultSets=True',
+        'UID=sa',
+        'PWD=LOLIGERbob2!',
     ])
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False

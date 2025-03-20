@@ -817,11 +817,7 @@ def get_statistics():
                 "Verwaltung": 0
             }
         
-        # 7. Device Type - Mobile vs Desktop (simuliert, da in Realität nicht erfasst)
-        device_stats = {
-            "Mobile": 73,
-            "Desktop": 27
-        }
+    
         
         # 8. This Month Summary - tatsächliche Buchungen und statische Fahrzeiten
         # Da Fahrzeiten später implementiert werden sollen, belassen wir die statischen Werte
@@ -882,7 +878,6 @@ def get_statistics():
             },
             "fuel_consumption": fuel_consumption,
             "department_usage": department_usage,
-            "device_stats": device_stats,
             "this_month": this_month_summary
         }
         

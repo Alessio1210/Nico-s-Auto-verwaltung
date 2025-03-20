@@ -67,14 +67,14 @@ function StatisticsDashboard() {
   };
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="p-6 bg-white h-screen overflow-hidden">
       <h2 className="text-3xl font-bold mb-2 text-center text-gray-800">Statistiken</h2>
       <div className="text-right text-sm text-gray-500 mb-6">
         Letzt Update: {format(new Date(), "dd. MMMM yyyy", { locale: de })}
       </div>
       
       {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)] overflow-y-auto">
         
         {/* Inspektionen Kosten */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
@@ -319,86 +319,6 @@ function StatisticsDashboard() {
           </div>
         </div>
         
-        {/* This Month Summary */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
-          <div className="p-5">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-800">This Month</h3>
-              <button className="text-gray-500 hover:text-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="text-center">
-              <h4 className="text-4xl font-bold mb-2 text-gray-800">{formatHoursAndMinutes(stats.this_month?.drive_time_hours || 0)}</h4>
-              <p className={`text-sm font-medium ${stats.this_month?.drive_time_change_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatPercentage(stats.this_month?.drive_time_change_pct || 0)} ({stats.this_month?.drive_time_change_abs >= 0 ? '+' : ''}{formatHoursAndMinutes(stats.this_month?.drive_time_change_abs || 0)})
-              </p>
-              
-              <h4 className="text-xl font-bold mt-6 mb-2 text-gray-800">Amount</h4>
-              <p className="text-4xl font-bold mb-2 text-gray-800">{stats.this_month?.total_pickups || 0}</p>
-              <p className={`text-sm font-medium ${stats.this_month?.pickups_change_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {stats.this_month?.pickups_change_pct >= 0 ? '+' : ''}{stats.this_month?.pickups_change_abs || 0} ({formatPercentage(stats.this_month?.pickups_change_pct || 0)})
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Device type */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
-          <div className="p-5">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-800">Device type</h3>
-              <button className="text-gray-500 hover:text-gray-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="h-56 flex items-center justify-center">
-              {stats.device_stats && (
-                <Pie 
-                  data={{
-                    labels: Object.keys(stats.device_stats),
-                    datasets: [{
-                      data: Object.values(stats.device_stats),
-                      backgroundColor: ['#3b82f6', '#93c5fd'],
-                      borderWidth: 0,
-                    }]
-                  }}
-                  options={{
-                    plugins: {
-                      legend: {
-                        position: 'bottom',
-                        labels: {
-                          padding: 20,
-                          color: '#374151'
-                        }
-                      },
-                      tooltip: {
-                        callbacks: {
-                          label: (context) => `${context.label}: ${context.raw}%`
-                        }
-                      }
-                    }
-                  }}
-                />
-              )}
-            </div>
-            
-            <div className="flex justify-center gap-8 text-sm mt-4">
-              {stats.device_stats && Object.entries(stats.device_stats).map(([device, percentage]) => (
-                <div key={device} className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-2 ${device === 'Mobile' ? 'bg-blue-500' : 'bg-blue-300'}`}></div>
-                  <span className="text-gray-700">{device} | {percentage}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
         
       </div>
     </div>
